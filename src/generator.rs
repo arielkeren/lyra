@@ -1,4 +1,5 @@
 use crate::types::Keyword::*;
+use crate::types::SpecialCharacter::*;
 use crate::types::Token::*;
 
 pub fn generate(
@@ -33,10 +34,14 @@ fn match_statement(tokens: &Vec<crate::types::Token>, filename: &str) -> String 
         [] => {
             return "".to_string();
         }
-        [Identifier(function), Keyword(Colon)] => {
+        [Identifier(function), SpecialCharacter(Colon)] => {
             return format!("void _{}_private_{}() {{\n", filename, function);
         }
-        [Keyword(Export), Identifier(function), Keyword(Colon)] => {
+        [
+            Keyword(Export),
+            Identifier(function),
+            SpecialCharacter(Colon),
+        ] => {
             return format!("void _{}_public_{}() {{\n", filename, function);
         }
         [Keyword(EndFunction)] => {
@@ -51,7 +56,7 @@ fn match_statement(tokens: &Vec<crate::types::Token>, filename: &str) -> String 
         [
             Keyword(Call),
             Identifier(file),
-            Keyword(Dot),
+            SpecialCharacter(Dot),
             Identifier(function),
         ] => {
             return format!(
