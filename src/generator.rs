@@ -17,6 +17,8 @@ pub fn generate(
             }
 
             return (match_statement(tokens, filename), true);
+        } else if tokens.contains(&SpecialCharacter(Colon)) {
+            return (format!("}}\n{}", match_statement(tokens, filename)), true);
         }
 
         if after_imports && first == &Keyword(Import) {
@@ -43,9 +45,6 @@ fn match_statement(tokens: &Vec<crate::types::Token>, filename: &str) -> String 
             SpecialCharacter(Colon),
         ] => {
             return format!("void _{}_public_{}() {{\n", filename, function);
-        }
-        [Keyword(EndFunction)] => {
-            return "}\n".to_string();
         }
         [Keyword(Print), Literal(msg)] => {
             return format!("printf({});\n", msg);

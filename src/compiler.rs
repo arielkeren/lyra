@@ -60,7 +60,9 @@ fn generate_c_file(
     }
 
     if filename == ENTRY_FILENAME {
-        writeln!(output_writer, "return 0;\n}}").expect("Failed to write main function");
+        writeln!(output_writer, "return 0;\n}}").expect("Failed to write main function end");
+    } else {
+        writeln!(output_writer, "}}").expect("Failed to write function end");
     }
 }
 

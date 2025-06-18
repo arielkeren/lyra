@@ -64,7 +64,6 @@ fn get_keyword(word: &str) -> Option<crate::types::Keyword> {
         "call" => Some(Call),
         "import" => Some(Import),
         "export" => Some(Export),
-        "end" => Some(EndFunction),
         _ => None,
     }
 }

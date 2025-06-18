@@ -11,7 +11,6 @@ pub enum Keyword {
     Call,
     Import,
     Export,
-    EndFunction,
 }
 
 #[derive(Debug, PartialEq)]
