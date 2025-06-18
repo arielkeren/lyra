@@ -1,5 +1,4 @@
 mod compiler;
-mod constants;
 mod generator;
 mod input;
 mod lexer;

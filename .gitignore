@@ -1,4 +1,6 @@
-/target
+target
+build
 *.exe
 *.c
+*.h
 *.ly

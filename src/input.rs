@@ -8,9 +8,7 @@ pub fn get_input() -> (Vec<String>, String) {
     for entry in std::fs::read_dir(".").expect("Failed to read current directory") {
         let entry = entry.expect("Failed to read directory entry");
         let path = entry.path();
-        if path.extension().and_then(|s| s.to_str())
-            == Some(crate::constants::EXTENSION.trim_start_matches('.'))
-        {
+        if path.extension().and_then(|s| s.to_str()) == Some("ly") {
             if let Some(filename) = path.file_name().and_then(|s| s.to_str()) {
                 filenames.push(filename.to_string());
             }
@@ -18,18 +16,11 @@ pub fn get_input() -> (Vec<String>, String) {
     }
 
     if filenames.is_empty() {
-        panic!(
-            "No {} files (extension {}) found in the current directory",
-            crate::constants::LANGUAGE_NAME,
-            crate::constants::EXTENSION
-        );
+        panic!("No Lyra files (extension .ly) found in the current directory");
     }
 
-    if !filenames.contains(&crate::constants::ENTRY_FILENAME.to_string()) {
-        panic!(
-            "No entry file {} found in the current directory",
-            crate::constants::ENTRY_FILENAME
-        );
+    if !filenames.contains(&"main.ly".to_string()) {
+        panic!("No entry file main.ly found in the current directory");
     }
 
     (filenames, executable_name)

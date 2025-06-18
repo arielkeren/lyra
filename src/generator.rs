@@ -6,19 +6,28 @@ pub fn generate(
     tokens: &Vec<crate::types::Token>,
     filename: &str,
     after_imports: bool,
-) -> (String, bool) {
+) -> (String, String, bool) {
     if let Some(first) = tokens.first() {
         if !after_imports && first != &Keyword(Import) {
-            if filename == crate::constants::ENTRY_FILENAME {
+            if filename == "main.ly" {
                 return (
-                    format!("int main() {{\n{}", match_statement(tokens, filename)),
+                    format!("int main() {{\n{}", match_c_code(tokens, filename)),
+                    "".to_string(),
                     true,
                 );
             }
 
-            return (match_statement(tokens, filename), true);
+            return (
+                match_c_code(tokens, filename),
+                match_h_code(tokens, filename),
+                true,
+            );
         } else if tokens.contains(&SpecialCharacter(Colon)) {
-            return (format!("}}\n{}", match_statement(tokens, filename)), true);
+            return (
+                format!("}}\n{}", match_c_code(tokens, filename)),
+                match_h_code(tokens, filename),
+                true,
+            );
         }
 
         if after_imports && first == &Keyword(Import) {
@@ -26,11 +35,15 @@ pub fn generate(
         }
     }
 
-    (match_statement(tokens, filename), after_imports)
+    (
+        match_c_code(tokens, filename),
+        match_h_code(tokens, filename),
+        after_imports,
+    )
 }
 
-fn match_statement(tokens: &Vec<crate::types::Token>, filename: &str) -> String {
-    let filename = filename.trim_end_matches(crate::constants::EXTENSION);
+fn match_c_code(tokens: &Vec<crate::types::Token>, filename: &str) -> String {
+    let filename = filename.trim_end_matches(".ly");
 
     match tokens.as_slice() {
         [] => {
@@ -58,23 +71,36 @@ fn match_statement(tokens: &Vec<crate::types::Token>, filename: &str) -> String 
             SpecialCharacter(Dot),
             Identifier(function),
         ] => {
-            return format!(
-                "_{}_public_{}();\n",
-                file.trim_end_matches(crate::constants::EXTENSION),
-                function
-            );
+            return format!("_{}_public_{}();\n", file.trim_end_matches(".ly"), function);
         }
         [Keyword(Import), Identifier(file)] => {
-            return format!(
-                "#include \"{}.c\"\n",
-                file.trim_end_matches(crate::constants::EXTENSION)
-            );
+            return format!("#include \"{}.h\"\n", file.trim_end_matches(".ly"));
         }
         _ => {
             panic!(
                 "Unexpected token sequence in file: {} - {:?}",
                 filename, tokens
             );
+        }
+    }
+}
+
+fn match_h_code(tokens: &Vec<crate::types::Token>, filename: &str) -> String {
+    let filename = filename.trim_end_matches(".ly");
+
+    match tokens.as_slice() {
+        [Identifier(function), SpecialCharacter(Colon)] => {
+            return format!("void _{}_private_{}();", filename, function);
+        }
+        [
+            Keyword(Export),
+            Identifier(function),
+            SpecialCharacter(Colon),
+        ] => {
+            return format!("void _{}_public_{}();", filename, function);
+        }
+        _ => {
+            return "".to_string();
         }
     }
 }
