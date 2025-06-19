@@ -69,10 +69,14 @@ fn generate_c_file(filename: &str, reader: &mut Reader, writer: &mut Writer) {
         (c_code, h_code, after_imports) =
             crate::generator::generate(&tokens, filename, after_imports);
 
-        writeln!(writer, "{}", c_code).expect("Failed to write to output file");
+        if !c_code.is_empty() {
+            writeln!(writer, "{}", c_code).expect("Failed to write to output file");
+        }
 
         if let Some(h_writer) = &mut header_writer {
-            writeln!(h_writer, "{}", h_code).expect("Failed to write to header file");
+            if !h_code.is_empty() {
+                writeln!(h_writer, "{}", h_code).expect("Failed to write to header file");
+            }
         }
     }
 
@@ -105,7 +109,7 @@ fn write_header_guard(filename: &str, header_writer: &mut Option<Writer>) {
 
 fn write_ending(filename: &str, writer: &mut Writer) {
     if filename == "main.ly" {
-        write!(writer, "return 0;\n}}").expect("Failed to write main function end");
+        write!(writer, "\nreturn 0;\n}}").expect("Failed to write main function end");
     } else {
         write!(writer, "}}").expect("Failed to write function end");
     }
@@ -113,7 +117,7 @@ fn write_ending(filename: &str, writer: &mut Writer) {
 
 fn write_header_ending(header_writer: &mut Option<Writer>) {
     if let Some(h_writer) = header_writer {
-        write!(h_writer, "#endif").expect("Failed to write header end");
+        write!(h_writer, "\n#endif").expect("Failed to write header end");
     }
 }
 
