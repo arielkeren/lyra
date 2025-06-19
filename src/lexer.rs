@@ -8,6 +8,8 @@ pub fn get_tokens(line: &str) -> Vec<crate::types::Token> {
     while let Some(&ch) = chars.peek() {
         if ch.is_whitespace() {
             chars.next();
+        } else if ch == '#' {
+            break;
         } else if ch == '"' {
             chars.next();
             let mut literal = String::new();
@@ -36,7 +38,11 @@ pub fn get_tokens(line: &str) -> Vec<crate::types::Token> {
             }
             if let Some(keyword) = get_keyword(&word) {
                 tokens.push(Keyword(keyword));
-            } else {
+            } else if word.chars().all(|c| c.is_ascii_digit()) {
+                tokens.push(Literal(word));
+            } else if word.chars().all(|c| c.is_ascii_alphanumeric())
+                && !word.chars().next().unwrap_or('0').is_ascii_digit()
+            {
                 tokens.push(Identifier(word));
             }
         }
@@ -64,6 +70,7 @@ fn get_keyword(word: &str) -> Option<crate::types::Keyword> {
         "call" => Some(Call),
         "import" => Some(Import),
         "export" => Some(Export),
+        "alloc" => Some(Alloc),
         _ => None,
     }
 }

@@ -10,5 +10,5 @@ fn main() {
 
     compiler::compile(&filenames, &executable_name);
     println!("Compilation completed successfully");
-    println!("Run the executable using: ./{}", executable_name);
+    println!("Run the executable using: ./build/{executable_name}");
 }

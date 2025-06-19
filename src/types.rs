@@ -14,6 +14,7 @@ pub enum Keyword {
     Call,
     Import,
     Export,
+    Alloc,
 }
 
 #[derive(Debug, PartialEq)]

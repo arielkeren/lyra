@@ -50,20 +50,20 @@ fn match_c_code(tokens: &Vec<crate::types::Token>, filename: &str) -> String {
             return "".to_string();
         }
         [Identifier(function), SpecialCharacter(Colon)] => {
-            return format!("void _{}_private_{}() {{", filename, function);
+            return format!("void _{filename}_private_{function}() {{");
         }
         [
             Keyword(Export),
             Identifier(function),
             SpecialCharacter(Colon),
         ] => {
-            return format!("void _{}_public_{}() {{", filename, function);
+            return format!("void _{filename}_public_{function}() {{");
         }
         [Keyword(Print), Literal(msg)] => {
-            return format!("printf({});", msg);
+            return format!("printf({msg});");
         }
         [Keyword(Call), Identifier(function)] => {
-            return format!("_{}_private_{}();", filename, function);
+            return format!("_{filename}_private_{function}();");
         }
         [
             Keyword(Call),
@@ -71,16 +71,23 @@ fn match_c_code(tokens: &Vec<crate::types::Token>, filename: &str) -> String {
             SpecialCharacter(Dot),
             Identifier(function),
         ] => {
-            return format!("_{}_public_{}();", file.trim_end_matches(".ly"), function);
+            return format!("_{}_public_{function}();", file.trim_end_matches(".ly"));
         }
         [Keyword(Import), Identifier(file)] => {
             return format!("#include \"{}.h\"\n", file.trim_end_matches(".ly"));
         }
-        _ => {
-            panic!(
-                "Unexpected token sequence in file: {} - {:?}",
-                filename, tokens
+        [
+            Identifier(var),
+            SpecialCharacter(Assignment),
+            Keyword(Alloc),
+            Literal(value),
+        ] => {
+            return format!(
+                "void *{var} = malloc({value} % 8 == 0 ? {value} / 8 : {value} / 8 + 1);\nif ({var} == NULL) {{\nfprintf(stderr, \"Memory allocation failed for variable \\\"{var}\\\"\\n\");\nexit(1);\n}}\n"
             );
+        }
+        _ => {
+            panic!("Unexpected token sequence in file: {filename} - {tokens:?}");
         }
     }
 }
@@ -90,14 +97,14 @@ fn match_h_code(tokens: &Vec<crate::types::Token>, filename: &str) -> String {
 
     match tokens.as_slice() {
         [Identifier(function), SpecialCharacter(Colon)] => {
-            return format!("void _{}_private_{}();", filename, function);
+            return format!("void _{filename}_private_{function}();");
         }
         [
             Keyword(Export),
             Identifier(function),
             SpecialCharacter(Colon),
         ] => {
-            return format!("void _{}_public_{}();", filename, function);
+            return format!("void _{filename}_public_{function}();");
         }
         _ => {
             return "".to_string();
