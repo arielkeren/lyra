@@ -82,9 +82,7 @@ fn match_c_code(tokens: &Vec<crate::types::Token>, filename: &str) -> String {
             Keyword(Alloc),
             Literal(bits),
         ] => {
-            return format!(
-                "unsigned char *{var} = calloc(({bits} + 7) / 8, 1);\nif (!{var}) {{\nfprintf(stderr, \"Memory allocation failed for variable \\\"{var}\\\"\\n\");\nexit(1);\n}}"
-            );
+            return format!("unsigned char *{var} = _alloc({bits});");
         }
         [
             Identifier(var),
@@ -96,9 +94,7 @@ fn match_c_code(tokens: &Vec<crate::types::Token>, filename: &str) -> String {
             SpecialCharacter(Assignment),
             Literal(value),
         ] => {
-            return format!(
-                "for (size_t i = {start}; i <= {end} - {start}; i++) {{\nif({value} & (1 << i)) {var}[({start} + i) / 8] |= (1 << (({start} + i) % 8));\nelse {var}[({start} + i) / 8] &= ~(1 << (({start} + i) % 8));\n}}"
-            );
+            return format!("_assign({var}, {start}, {end}, {value});",);
         }
         _ => {
             panic!("Unexpected token sequence in file: {filename} - {tokens:?}");
