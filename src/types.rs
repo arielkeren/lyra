@@ -27,3 +27,9 @@ pub enum Token {
     SpecialCharacter(SpecialCharacter),
     Literal(String),
 }
+
+pub struct Args {
+    pub command: String,
+    pub executable_name: String,
+    pub release: bool,
+}

@@ -6,18 +6,18 @@ mod lexer;
 mod types;
 
 fn main() {
-    let (filenames, command, executable_name) = input::get_input();
+    let (filenames, args) = input::get_input();
 
-    match command.as_str() {
+    match args.command.as_str() {
         "clean" => {
             extra::delete_build();
         }
         "build" => {
-            compiler::compile(&filenames, &executable_name);
+            compiler::compile(&filenames, &args.executable_name, args.release);
         }
         "run" => {
-            compiler::compile(&filenames, &executable_name);
-            extra::run_executable(&executable_name);
+            compiler::compile(&filenames, &args.executable_name, args.release);
+            extra::run_executable(&args.executable_name);
         }
         _ => unreachable!(),
     }

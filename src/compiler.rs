@@ -2,7 +2,7 @@ use crate::types::{Reader, Writer};
 use std::io::BufRead;
 use std::io::Write;
 
-pub fn compile(filenames: &Vec<String>, executable_name: &str) {
+pub fn compile(filenames: &Vec<String>, executable_name: &str, release: bool) {
     let mut readers = get_readers(filenames);
     let mut writers = get_writers(filenames);
 
@@ -15,7 +15,7 @@ pub fn compile(filenames: &Vec<String>, executable_name: &str) {
     }
 
     flush_writers(&mut writers);
-    create_executable(filenames, executable_name);
+    create_executable(filenames, executable_name, release);
 }
 
 fn get_readers(filenames: &Vec<String>) -> Vec<Reader> {
@@ -127,7 +127,7 @@ fn flush_writers(writers: &mut Vec<Writer>) {
     }
 }
 
-fn create_executable(filenames: &Vec<String>, executable_name: &str) {
+fn create_executable(filenames: &Vec<String>, executable_name: &str, release: bool) {
     let c_files = filenames
         .iter()
         .map(|filename| {
@@ -139,13 +139,22 @@ fn create_executable(filenames: &Vec<String>, executable_name: &str) {
         })
         .collect::<Vec<_>>();
 
-    let status = std::process::Command::new("gcc")
-        .arg("-Ibuild/include")
-        .args(&c_files) // or the correct path to your main.c
+    let mut cmd = std::process::Command::new("gcc");
+    cmd.arg("-Ibuild/include");
+    if release {
+        cmd.args([
+            "-O3",
+            "-march=native",
+            "-flto",
+            "-funroll-loops",
+            "-fomit-frame-pointer",
+        ]);
+    }
+    cmd.args(&c_files)
         .arg("-o")
-        .arg(format!("build/{}", executable_name))
-        .status()
-        .expect("Failed to run gcc");
+        .arg(format!("build/{}", executable_name));
+
+    let status = cmd.status().expect("Failed to run gcc");
 
     if !status.success() {
         panic!("gcc failed to compile");

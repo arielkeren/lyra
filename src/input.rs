@@ -1,4 +1,6 @@
-pub fn get_input() -> (Vec<String>, String, String) {
+use crate::types::Args;
+
+pub fn get_input() -> (Vec<String>, Args) {
     let mut filenames: Vec<String> = Vec::new();
 
     for entry in std::fs::read_dir(".").expect("Failed to read current directory") {
@@ -19,14 +21,15 @@ pub fn get_input() -> (Vec<String>, String, String) {
         panic!("No entry file main.ly found in the current directory");
     }
 
-    let (command, executable_name) = read_args();
+    let args = read_args();
 
-    (filenames, command, executable_name)
+    (filenames, args)
 }
 
-fn read_args() -> (String, String) {
+fn read_args() -> Args {
     let mut args = std::env::args().skip(1);
     let mut executable_name = "program".to_string();
+    let mut release = false;
 
     let command = args.next().unwrap_or_else(|| {
         panic!("No command provided.");
@@ -45,11 +48,18 @@ fn read_args() -> (String, String) {
                     panic!("Expected an executable name after --output or -o");
                 }
             }
+            "--release" | "-r" => {
+                release = true;
+            }
             _ => {
                 panic!("Unknown argument: {}", arg);
             }
         }
     }
 
-    (command, executable_name)
+    Args {
+        command,
+        executable_name,
+        release,
+    }
 }
