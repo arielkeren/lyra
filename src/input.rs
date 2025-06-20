@@ -1,4 +1,4 @@
-pub fn get_input() -> (Vec<String>, String, bool) {
+pub fn get_input() -> (Vec<String>, String, String) {
     let mut filenames: Vec<String> = Vec::new();
 
     for entry in std::fs::read_dir(".").expect("Failed to read current directory") {
@@ -19,15 +19,22 @@ pub fn get_input() -> (Vec<String>, String, bool) {
         panic!("No entry file main.ly found in the current directory");
     }
 
-    let (executable_name, should_run) = read_args();
+    let (command, executable_name) = read_args();
 
-    (filenames, executable_name, should_run)
+    (filenames, command, executable_name)
 }
 
-fn read_args() -> (String, bool) {
+fn read_args() -> (String, String) {
     let mut args = std::env::args().skip(1);
     let mut executable_name = "program".to_string();
-    let mut should_run = false;
+
+    let command = args.next().unwrap_or_else(|| {
+        panic!("No command provided.");
+    });
+
+    if command != "build" && command != "run" && command != "clean" {
+        panic!("Invalid command");
+    }
 
     while let Some(arg) = args.next() {
         match arg.as_str() {
@@ -38,14 +45,11 @@ fn read_args() -> (String, bool) {
                     panic!("Expected an executable name after --output or -o");
                 }
             }
-            "--run" | "-r" => {
-                should_run = true;
-            }
             _ => {
                 panic!("Unknown argument: {}", arg);
             }
         }
     }
 
-    (executable_name, should_run)
+    (command, executable_name)
 }
