@@ -15,6 +15,7 @@ pub fn compile(filenames: &Vec<String>, executable_name: &str, release: bool) {
     }
 
     flush_writers(&mut writers);
+    crate::stdlib::write_stdlib();
     create_executable(filenames, executable_name, release);
 }
 
@@ -151,6 +152,7 @@ fn create_executable(filenames: &Vec<String>, executable_name: &str, release: bo
         ]);
     }
     cmd.args(&c_files)
+        .arg("build/src/std.c")
         .arg("-o")
         .arg(format!("build/{}", executable_name));
 

@@ -3,6 +3,7 @@ mod extra;
 mod generator;
 mod input;
 mod lexer;
+mod stdlib;
 mod types;
 
 fn main() {
