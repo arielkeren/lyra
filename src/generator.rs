@@ -80,10 +80,24 @@ fn match_c_code(tokens: &Vec<crate::types::Token>, filename: &str) -> String {
             Identifier(var),
             SpecialCharacter(Assignment),
             Keyword(Alloc),
+            Literal(bits),
+        ] => {
+            return format!(
+                "unsigned char *{var} = calloc(({bits} + 7) / 8, 1);\nif (!{var}) {{\nfprintf(stderr, \"Memory allocation failed for variable \\\"{var}\\\"\\n\");\nexit(1);\n}}"
+            );
+        }
+        [
+            Identifier(var),
+            SpecialCharacter(SquareBracketOpen),
+            Literal(start),
+            SpecialCharacter(Tilde),
+            Literal(end),
+            SpecialCharacter(SquareBracketClose),
+            SpecialCharacter(Assignment),
             Literal(value),
         ] => {
             return format!(
-                "void *{var} = malloc({value} % 8 == 0 ? {value} / 8 : {value} / 8 + 1);\nif ({var} == NULL) {{\nfprintf(stderr, \"Memory allocation failed for variable \\\"{var}\\\"\\n\");\nexit(1);\n}}\n"
+                "for (size_t i = {start}; i <= {end} - {start}; i++) {{\nif({value} & (1 << i)) {var}[({start} + i) / 8] |= (1 << (({start} + i) % 8));\nelse {var}[({start} + i) / 8] &= ~(1 << (({start} + i) % 8));\n}}"
             );
         }
         _ => {

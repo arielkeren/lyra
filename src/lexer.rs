@@ -1,4 +1,5 @@
 use crate::types::Keyword::*;
+use crate::types::SpecialCharacter::*;
 use crate::types::Token::*;
 
 pub fn get_tokens(line: &str) -> Vec<crate::types::Token> {
@@ -57,9 +58,12 @@ fn is_special_character(ch: char) -> bool {
 
 fn get_special_character(ch: char) -> Option<crate::types::SpecialCharacter> {
     match ch {
-        '=' => Some(crate::types::SpecialCharacter::Assignment),
-        ':' => Some(crate::types::SpecialCharacter::Colon),
-        '.' => Some(crate::types::SpecialCharacter::Dot),
+        '=' => Some(Assignment),
+        ':' => Some(Colon),
+        '.' => Some(Dot),
+        '~' => Some(Tilde),
+        '[' => Some(SquareBracketOpen),
+        ']' => Some(SquareBracketClose),
         _ => None,
     }
 }

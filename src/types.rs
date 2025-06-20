@@ -6,6 +6,9 @@ pub enum SpecialCharacter {
     Assignment,
     Colon,
     Dot,
+    SquareBracketOpen,
+    SquareBracketClose,
+    Tilde,
 }
 
 #[derive(Debug, PartialEq)]
