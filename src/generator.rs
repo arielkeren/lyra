@@ -88,13 +88,83 @@ fn match_c_code(tokens: &Vec<crate::types::Token>, filename: &str) -> String {
             Identifier(var),
             SpecialCharacter(SquareBracketOpen),
             Literal(start),
-            SpecialCharacter(Tilde),
+            SpecialCharacter(Dash),
             Literal(end),
             SpecialCharacter(SquareBracketClose),
             SpecialCharacter(Assignment),
             Literal(value),
         ] => {
             return format!("_assign({var}, {start}, {end}, {value});",);
+        }
+        [
+            Keyword(Print),
+            SpecialCharacter(ParanthesisOpen),
+            Keyword(Binary),
+            SpecialCharacter(ParanthesisClose),
+            Identifier(var),
+            SpecialCharacter(SquareBracketOpen),
+            Literal(start),
+            SpecialCharacter(Dash),
+            Literal(end),
+            SpecialCharacter(SquareBracketClose),
+        ] => {
+            return format!("_print_binary({var}, {start}, {end});");
+        }
+        [
+            Keyword(Print),
+            SpecialCharacter(ParanthesisOpen),
+            Keyword(Octal),
+            SpecialCharacter(ParanthesisClose),
+            Identifier(var),
+            SpecialCharacter(SquareBracketOpen),
+            Literal(start),
+            SpecialCharacter(Dash),
+            Literal(end),
+            SpecialCharacter(SquareBracketClose),
+        ] => {
+            return format!("_print_octal({var}, {start}, {end});");
+        }
+        [
+            Keyword(Print),
+            SpecialCharacter(ParanthesisOpen),
+            Keyword(Hex),
+            SpecialCharacter(ParanthesisClose),
+            Identifier(var),
+            SpecialCharacter(SquareBracketOpen),
+            Literal(start),
+            SpecialCharacter(Dash),
+            Literal(end),
+            SpecialCharacter(SquareBracketClose),
+        ] => {
+            return format!("_print_hex({var}, {start}, {end});");
+        }
+        [
+            Keyword(Print),
+            SpecialCharacter(ParanthesisOpen),
+            Keyword(Signed),
+            SpecialCharacter(ParanthesisClose),
+            Identifier(var),
+            SpecialCharacter(SquareBracketOpen),
+            Literal(start),
+            SpecialCharacter(Dash),
+            Literal(end),
+            SpecialCharacter(SquareBracketClose),
+        ] => {
+            return format!("_print_signed({var}, {start}, {end});");
+        }
+        [
+            Keyword(Print),
+            SpecialCharacter(ParanthesisOpen),
+            Keyword(Unsigned),
+            SpecialCharacter(ParanthesisClose),
+            Identifier(var),
+            SpecialCharacter(SquareBracketOpen),
+            Literal(start),
+            SpecialCharacter(Dash),
+            Literal(end),
+            SpecialCharacter(SquareBracketClose),
+        ] => {
+            return format!("_print_unsigned({var}, {start}, {end});");
         }
         _ => {
             panic!("Unexpected token sequence in file: {filename} - {tokens:?}");

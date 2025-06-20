@@ -6,9 +6,11 @@ pub enum SpecialCharacter {
     Assignment,
     Colon,
     Dot,
+    Dash,
+    ParanthesisOpen,
+    ParanthesisClose,
     SquareBracketOpen,
     SquareBracketClose,
-    Tilde,
 }
 
 #[derive(Debug, PartialEq)]
@@ -18,6 +20,11 @@ pub enum Keyword {
     Import,
     Export,
     Alloc,
+    Binary,
+    Octal,
+    Hex,
+    Signed,
+    Unsigned,
 }
 
 #[derive(Debug, PartialEq)]

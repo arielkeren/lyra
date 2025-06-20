@@ -61,7 +61,9 @@ fn get_special_character(ch: char) -> Option<crate::types::SpecialCharacter> {
         '=' => Some(Assignment),
         ':' => Some(Colon),
         '.' => Some(Dot),
-        '~' => Some(Tilde),
+        '-' => Some(Dash),
+        '(' => Some(ParanthesisOpen),
+        ')' => Some(ParanthesisClose),
         '[' => Some(SquareBracketOpen),
         ']' => Some(SquareBracketClose),
         _ => None,
@@ -75,6 +77,11 @@ fn get_keyword(word: &str) -> Option<crate::types::Keyword> {
         "import" => Some(Import),
         "export" => Some(Export),
         "alloc" => Some(Alloc),
+        "binary" => Some(Binary),
+        "octal" => Some(Octal),
+        "hex" => Some(Hex),
+        "signed" => Some(Signed),
+        "unsigned" => Some(Unsigned),
         _ => None,
     }
 }
