@@ -61,11 +61,8 @@ fn get_special_character(ch: char) -> Option<crate::types::SpecialCharacter> {
         '=' => Some(Assignment),
         ':' => Some(Colon),
         '.' => Some(Dot),
-        '-' => Some(Dash),
-        '(' => Some(ParanthesisOpen),
-        ')' => Some(ParanthesisClose),
-        '[' => Some(SquareBracketOpen),
-        ']' => Some(SquareBracketClose),
+        '(' => Some(OpenParenthesis),
+        ')' => Some(CloseParenthesis),
         _ => None,
     }
 }
@@ -73,15 +70,20 @@ fn get_special_character(ch: char) -> Option<crate::types::SpecialCharacter> {
 fn get_keyword(word: &str) -> Option<crate::types::Keyword> {
     match word {
         "print" => Some(Print),
+        "println" => Some(Println),
         "call" => Some(Call),
         "import" => Some(Import),
         "export" => Some(Export),
-        "alloc" => Some(Alloc),
-        "binary" => Some(Binary),
-        "octal" => Some(Octal),
-        "hex" => Some(Hex),
-        "signed" => Some(Signed),
-        "unsigned" => Some(Unsigned),
+        "i8" => Some(I8),
+        "i16" => Some(I16),
+        "i32" => Some(I32),
+        "i64" => Some(I64),
+        "u8" => Some(U8),
+        "u16" => Some(U16),
+        "u32" => Some(U32),
+        "u64" => Some(U64),
+        "f32" => Some(F32),
+        "f64" => Some(F64),
         _ => None,
     }
 }
