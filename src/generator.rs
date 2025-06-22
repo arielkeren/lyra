@@ -1,10 +1,12 @@
+use crate::types::Keyword;
 use crate::types::Keyword::*;
 use crate::types::SpecialCharacter;
 use crate::types::SpecialCharacter::*;
+use crate::types::Token;
 use crate::types::Token::*;
 
 pub fn generate(
-    tokens: &Vec<crate::types::Token>,
+    tokens: &Vec<Token>,
     filename: &str,
     after_imports: bool,
 ) -> (String, String, bool) {
@@ -43,396 +45,219 @@ pub fn generate(
     )
 }
 
-fn match_c_code(tokens: &Vec<crate::types::Token>, filename: &str) -> String {
+fn match_c_code(tokens: &Vec<Token>, filename: &str) -> String {
     let filename = filename.trim_end_matches(".ly");
 
     match tokens.as_slice() {
-        [] => {
-            return "".to_string();
-        }
+        [] => "".to_string(),
 
         [Keyword(Import), Identifier(file)] => {
-            return format!("#include \"{}.h\"\n", file.trim_end_matches(".ly"));
+            format!("#include \"{}.h\"\n", file.trim_end_matches(".ly"))
         }
 
         [Identifier(function), SpecialCharacter(Colon)] => {
-            return format!("void _{filename}_private_{function}() {{");
+            format!("void _{filename}_private_{function}() {{")
         }
         [
             Keyword(Export),
             Identifier(function),
             SpecialCharacter(Colon),
-        ] => {
-            return format!("void _{filename}_public_{function}() {{");
-        }
+        ] => format!("void _{filename}_public_{function}() {{"),
 
-        [Keyword(Call), Identifier(function)] => {
-            return format!("_{filename}_private_{function}();");
-        }
+        [Keyword(Call), Identifier(function)] => format!("_{filename}_private_{function}();"),
         [
             Keyword(Call),
             Identifier(file),
             SpecialCharacter(Dot),
             Identifier(function),
-        ] => {
-            return format!("_{}_public_{function}();", file.trim_end_matches(".ly"));
-        }
+        ] => format!("_{}_public_{function}();", file.trim_end_matches(".ly")),
 
-        [Keyword(Print), Identifier(var)] => {
-            return format!("_print(&{var});");
-        }
-        [Keyword(Println), Identifier(var)] => {
-            return format!("_println(&{var});");
-        }
-        [Keyword(Print), Literal(msg)] => {
-            return format!("printf(\"{msg}\");");
-        }
-        [Keyword(Println), Literal(msg)] => {
-            return format!("printf(\"{msg}\\n\");");
-        }
+        [Keyword(Print), Identifier(var)] => format!("_print(&{var});"),
+        [Keyword(Print), Literal(msg)] => format!("printf(\"{msg}\");"),
+        [Keyword(Print), Keyword(True)] => "printf(\"true\");".to_string(),
+        [Keyword(Print), Keyword(False)] => "printf(\"false\");".to_string(),
 
+        [Keyword(Println), Identifier(var)] => format!("_println(&{var});"),
+        [Keyword(Println), Literal(msg)] => format!("printf(\"{msg}\\n\");"),
+        [Keyword(Println), Keyword(True)] => "printf(\"true\\n\");".to_string(),
+        [Keyword(Println), Keyword(False)] => "printf(\"false\\n\");".to_string(),
+        [Keyword(Println)] => "printf(\"\\n\");".to_string(),
+
+        [Keyword(var_type), Identifier(var)] => generate_declaration(&var_type, var),
         [
-            Identifier(var),
-            SpecialCharacter(Assignment),
-            Literal(value),
-        ] => {
-            return format!("_assign_literal(&{var}, {value});");
-        }
-
-        [
+            Keyword(var_type),
             Identifier(dest),
             SpecialCharacter(Assignment),
-            Identifier(left),
-            SpecialCharacter(op),
-            Identifier(right),
-        ] => {
-            return gen_assign_op(dest, left, op, right, true, true);
-        }
+            Identifier(src),
+        ] => generate_variable_initilization(var_type, dest, src),
         [
-            Identifier(dest),
+            Keyword(var_type),
+            Identifier(var),
             SpecialCharacter(Assignment),
-            Identifier(left),
-            SpecialCharacter(op),
-            Literal(right),
-        ] => {
-            return gen_assign_op(dest, left, op, right, true, false);
-        }
-        [
-            Identifier(dest),
-            SpecialCharacter(Assignment),
-            Literal(left),
-            SpecialCharacter(op),
-            Identifier(right),
-        ] => {
-            return gen_assign_op(dest, left, op, right, false, true);
-        }
-        [
-            Identifier(dest),
-            SpecialCharacter(Assignment),
-            Literal(left),
-            SpecialCharacter(op),
-            Literal(right),
-        ] => {
-            return gen_assign_op(dest, left, op, right, false, false);
-        }
+            Literal(value),
+        ] => generate_literal_initialization(&var_type, var, value),
 
-        [Keyword(I8), Identifier(var)] => {
-            return format!("Var {var} = {{ TYPE_I8, .value.i8 = 0 }};");
-        }
-        [Keyword(I16), Identifier(var)] => {
-            return format!("Var {var} = {{ TYPE_I16, .value.i16 = 0 }};");
-        }
-        [Keyword(I32), Identifier(var)] => {
-            return format!("Var {var} = {{ TYPE_I32, .value.i32 = 0 }};");
-        }
-        [Keyword(I64), Identifier(var)] => {
-            return format!("Var {var} = {{ TYPE_I64, .value.i64 = 0 }};");
-        }
-        [Keyword(U8), Identifier(var)] => {
-            return format!("Var {var} = {{ TYPE_U8, .value.u8 = 0 }};");
-        }
-        [Keyword(U16), Identifier(var)] => {
-            return format!("Var {var} = {{ TYPE_U16, .value.u16 = 0 }};");
-        }
-        [Keyword(U32), Identifier(var)] => {
-            return format!("Var {var} = {{ TYPE_U32, .value.u32 = 0 }};");
-        }
-        [Keyword(U64), Identifier(var)] => {
-            return format!("Var {var} = {{ TYPE_U64, .value.u64 = 0 }};");
-        }
-        [Keyword(F32), Identifier(var)] => {
-            return format!("Var {var} = {{ TYPE_F32, .value.f32 = 0.0 }};");
-        }
-        [Keyword(F64), Identifier(var)] => {
-            return format!("Var {var} = {{ TYPE_F64, .value.f64 = 0.0 }};");
-        }
-        [Keyword(Bool), Identifier(var)] => {
-            return format!("Var {var} = {{ TYPE_BOOL, .value.b = false }};");
-        }
-        [Keyword(Char), Identifier(var)] => {
-            return format!("Var {var} = {{ TYPE_CHAR, .value.c = '\\0' }};");
-        }
-
-        [
-            Keyword(I8),
-            Identifier(var),
-            SpecialCharacter(Assignment),
-            Literal(value),
-        ] => {
-            return format!("Var {var} = {{ TYPE_I8, .value.i8 = (uint8_t){value} }};");
-        }
-        [
-            Keyword(I16),
-            Identifier(var),
-            SpecialCharacter(Assignment),
-            Literal(value),
-        ] => {
-            return format!("Var {var} = {{ TYPE_I16, .value.i16 = (uint16_t){value} }};");
-        }
-        [
-            Keyword(I32),
-            Identifier(var),
-            SpecialCharacter(Assignment),
-            Literal(value),
-        ] => {
-            return format!("Var {var} = {{ TYPE_I32, .value.i32 = (int32_t){value} }};");
-        }
-        [
-            Keyword(I64),
-            Identifier(var),
-            SpecialCharacter(Assignment),
-            Literal(value),
-        ] => {
-            return format!("Var {var} = {{ TYPE_I64, .value.i64 = (int64_t){value} }};");
-        }
-        [
-            Keyword(U8),
-            Identifier(var),
-            SpecialCharacter(Assignment),
-            Literal(value),
-        ] => {
-            return format!("Var {var} = {{ TYPE_U8, .value.u8 = (uint8_t){value} }};");
-        }
-        [
-            Keyword(U16),
-            Identifier(var),
-            SpecialCharacter(Assignment),
-            Literal(value),
-        ] => {
-            return format!("Var {var} = {{ TYPE_U16, .value.u16 = (uint16_t){value} }};");
-        }
-        [
-            Keyword(U32),
-            Identifier(var),
-            SpecialCharacter(Assignment),
-            Literal(value),
-        ] => {
-            return format!("Var {var} = {{ TYPE_U32, .value.u32 = (uint32_t){value} }};");
-        }
-        [
-            Keyword(U64),
-            Identifier(var),
-            SpecialCharacter(Assignment),
-            Literal(value),
-        ] => {
-            return format!("Var {var} = {{ TYPE_U64, .value.u64 = (uint64_t){value} }};");
-        }
-        [
-            Keyword(F32),
-            Identifier(var),
-            SpecialCharacter(Assignment),
-            Literal(value),
-        ] => {
-            return format!("Var {var} = {{ TYPE_F32, .value.f32 = (float){value} }};");
-        }
-        [
-            Keyword(F64),
-            Identifier(var),
-            SpecialCharacter(Assignment),
-            Literal(value),
-        ] => {
-            return format!("Var {var} = {{ TYPE_F64, .value.f64 = (double){value} }};");
-        }
-        [
-            Keyword(Bool),
-            Identifier(var),
-            SpecialCharacter(Assignment),
-            Literal(value),
-        ] => {
-            return format!("Var {var} = {{ TYPE_BOOL, .value.b = (bool){value} }};");
-        }
         [
             Keyword(Bool),
             Identifier(var),
             SpecialCharacter(Assignment),
             Keyword(True),
-        ] => {
-            return format!("Var {var} = {{ TYPE_BOOL, .value.b = true }};");
-        }
+        ] => format!("Var {var} = {{ TYPE_BOOL, .value.b = true }};"),
         [
             Keyword(Bool),
             Identifier(var),
             SpecialCharacter(Assignment),
             Keyword(False),
-        ] => {
-            return format!("Var {var} = {{ TYPE_BOOL, .value.b = false }};");
-        }
+        ] => format!("Var {var} = {{ TYPE_BOOL, .value.b = false }};"),
+
         [
-            Keyword(Char),
             Identifier(var),
             SpecialCharacter(Assignment),
             Literal(value),
-        ] => {
-            return format!("Var {var} = {{ TYPE_CHAR, .value.c = (char)'{value}' }};");
+        ] => format!("_assign(&{var}, {value});"),
+        [Identifier(var), SpecialCharacter(Assignment), Keyword(True)] => {
+            format!("_assign(&{var}, true);")
         }
+        [
+            Identifier(var),
+            SpecialCharacter(Assignment),
+            Keyword(False),
+        ] => format!("_assign(&{var}, false);"),
 
         [
-            Keyword(I8),
             Identifier(dest),
             SpecialCharacter(Assignment),
-            Identifier(src),
-        ] => {
-            return format!(
-                "Var {dest} = {{ TYPE_I8, .value.i8 = 0 }};\n_assign(&{dest}, GET_VALUE({src}));"
-            );
-        }
+            Identifier(left),
+            SpecialCharacter(op),
+            Identifier(right),
+        ] => generate_operation_assignment(dest, left, op, right, true, true),
         [
-            Keyword(I16),
             Identifier(dest),
             SpecialCharacter(Assignment),
-            Identifier(src),
-        ] => {
-            return format!(
-                "Var {dest} = {{ TYPE_I16, .value.i16 = 0 }};\n_assign(&{dest}, GET_VALUE({src}));"
-            );
-        }
+            Identifier(left),
+            SpecialCharacter(op),
+            Literal(right),
+        ] => generate_operation_assignment(dest, left, op, right, true, false),
         [
-            Keyword(I32),
             Identifier(dest),
             SpecialCharacter(Assignment),
-            Identifier(src),
-        ] => {
-            return format!(
-                "Var {dest} = {{ TYPE_I32, .value.i32 = 0 }};\n_assign(&{dest}, GET_VALUE({src}));"
-            );
-        }
+            Literal(left),
+            SpecialCharacter(op),
+            Identifier(right),
+        ] => generate_operation_assignment(dest, left, op, right, false, true),
         [
-            Keyword(I64),
             Identifier(dest),
             SpecialCharacter(Assignment),
-            Identifier(src),
-        ] => {
-            return format!(
-                "Var {dest} = {{ TYPE_I64, .value.i64 = 0 }};\n_assign(&{dest}, GET_VALUE({src}));"
-            );
-        }
-        [
-            Keyword(U8),
-            Identifier(dest),
-            SpecialCharacter(Assignment),
-            Identifier(src),
-        ] => {
-            return format!(
-                "Var {dest} = {{ TYPE_U8, .value.u8 = 0 }};\n_assign(&{dest}, GET_VALUE({src}));"
-            );
-        }
-        [
-            Keyword(U16),
-            Identifier(dest),
-            SpecialCharacter(Assignment),
-            Identifier(src),
-        ] => {
-            return format!(
-                "Var {dest} = {{ TYPE_U16, .value.u16 = 0 }};\n_assign(&{dest}, GET_VALUE({src}));"
-            );
-        }
-        [
-            Keyword(U32),
-            Identifier(dest),
-            SpecialCharacter(Assignment),
-            Identifier(src),
-        ] => {
-            return format!(
-                "Var {dest} = {{ TYPE_U32, .value.u32 = 0 }};\n_assign(&{dest}, GET_VALUE({src}));"
-            );
-        }
-        [
-            Keyword(U64),
-            Identifier(dest),
-            SpecialCharacter(Assignment),
-            Identifier(src),
-        ] => {
-            return format!(
-                "Var {dest} = {{ TYPE_U64, .value.u64 = 0 }};\n_assign(&{dest}, GET_VALUE({src}));"
-            );
-        }
-        [
-            Keyword(F32),
-            Identifier(dest),
-            SpecialCharacter(Assignment),
-            Identifier(src),
-        ] => {
-            return format!(
-                "Var {dest} = {{ TYPE_F32, .value.f32 = 0.0 }};\n_assign(&{dest}, GET_VALUE({src}));"
-            );
-        }
-        [
-            Keyword(F64),
-            Identifier(dest),
-            SpecialCharacter(Assignment),
-            Identifier(src),
-        ] => {
-            return format!(
-                "Var {dest} = {{ TYPE_F64, .value.f64 = 0.0 }};\n_assign(&{dest}, GET_VALUE({src}));"
-            );
-        }
-        [
-            Keyword(Bool),
-            Identifier(dest),
-            SpecialCharacter(Assignment),
-            Identifier(src),
-        ] => {
-            return format!(
-                "Var {dest} = {{ TYPE_BOOL, .value.b = false }};\n_assign(&{dest}, GET_VALUE({src}));"
-            );
-        }
-        [
-            Keyword(Char),
-            Identifier(dest),
-            SpecialCharacter(Assignment),
-            Identifier(src),
-        ] => {
-            return format!(
-                "Var {dest} = {{ TYPE_CHAR, .value.c = '\\0' }};\n_assign(&{dest}, GET_VALUE({src}));"
-            );
-        }
+            Literal(left),
+            SpecialCharacter(op),
+            Literal(right),
+        ] => generate_operation_assignment(dest, left, op, right, false, false),
+
         _ => {
-            panic!("Unexpected token sequence in file: {filename} - {tokens:?}");
+            panic!("Unexpected token sequence in file: {filename} - {tokens:?}")
         }
     }
 }
 
-fn match_h_code(tokens: &Vec<crate::types::Token>, filename: &str) -> String {
+fn match_h_code(tokens: &Vec<Token>, filename: &str) -> String {
     let filename = filename.trim_end_matches(".ly");
 
     match tokens.as_slice() {
         [Identifier(function), SpecialCharacter(Colon)] => {
-            return format!("void _{filename}_private_{function}();");
+            format!("void _{filename}_private_{function}();")
         }
+
         [
             Keyword(Export),
             Identifier(function),
             SpecialCharacter(Colon),
-        ] => {
-            return format!("void _{filename}_public_{function}();");
-        }
-        _ => {
-            return "".to_string();
-        }
+        ] => format!("void _{filename}_public_{function}();"),
+
+        _ => "".to_string(),
     }
 }
 
-fn gen_assign_op(
+fn keyword_to_type(keyword: &Keyword) -> (String, String, String) {
+    match keyword {
+        I8 => (
+            "TYPE_I8".to_string(),
+            "i8".to_string(),
+            "int8_t".to_string(),
+        ),
+        I16 => (
+            "TYPE_I16".to_string(),
+            "i16".to_string(),
+            "int16_t".to_string(),
+        ),
+        I32 => (
+            "TYPE_I32".to_string(),
+            "i32".to_string(),
+            "int32_t".to_string(),
+        ),
+        I64 => (
+            "TYPE_I64".to_string(),
+            "i64".to_string(),
+            "int64_t".to_string(),
+        ),
+        U8 => (
+            "TYPE_U8".to_string(),
+            "u8".to_string(),
+            "uint8_t".to_string(),
+        ),
+        U16 => (
+            "TYPE_U16".to_string(),
+            "u16".to_string(),
+            "uint16_t".to_string(),
+        ),
+        U32 => (
+            "TYPE_U32".to_string(),
+            "u32".to_string(),
+            "uint32_t".to_string(),
+        ),
+        U64 => (
+            "TYPE_U64".to_string(),
+            "u64".to_string(),
+            "uint64_t".to_string(),
+        ),
+        F32 => (
+            "TYPE_F32".to_string(),
+            "f32".to_string(),
+            "float".to_string(),
+        ),
+        F64 => (
+            "TYPE_F64".to_string(),
+            "f64".to_string(),
+            "double".to_string(),
+        ),
+        Bool => ("TYPE_BOOL".to_string(), "b".to_string(), "bool".to_string()),
+        Char => ("TYPE_CHAR".to_string(), "c".to_string(), "char".to_string()),
+        _ => panic!("Expected a type, but got: {:?}", keyword),
+    }
+}
+
+fn generate_declaration(var_type: &Keyword, var: &str) -> String {
+    let (enum_type, union_type, _) = keyword_to_type(var_type);
+    format!("Var {var} = {{ {enum_type}, .value.{union_type} = 0 }};")
+}
+
+fn generate_literal_initialization(var_type: &Keyword, var: &str, value: &str) -> String {
+    let (enum_type, union_type, c_type) = keyword_to_type(var_type);
+
+    if var_type == &Char {
+        format!("Var {var} = {{ {enum_type}, .value.{union_type} = (char)'{value}' }};")
+    } else {
+        format!("Var {var} = {{ {enum_type}, .value.{union_type} = ({c_type}){value} }};")
+    }
+}
+
+fn generate_variable_initilization(var_type: &Keyword, dest: &str, src: &str) -> String {
+    let (enum_type, union_type, _) = keyword_to_type(var_type);
+    format!(
+        "Var {dest} = {{ {enum_type}, .value.{union_type} = 0 }};\n_assign(&{dest}, GET_VALUE({src}));"
+    )
+}
+
+fn generate_operation_assignment(
     dest: &str,
     left: &str,
     op: &SpecialCharacter,
@@ -459,7 +284,7 @@ fn gen_assign_op(
         BitwiseAnd => '&',
         BitwiseOr => '|',
         BitwiseXor => '^',
-        _ => panic!("Unsupported operator: {:?}", op),
+        _ => panic!("Expected a binary operator, but got: {:?}", op),
     };
 
     format!(
