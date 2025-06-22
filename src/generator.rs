@@ -127,7 +127,7 @@ fn match_c_code(tokens: &Vec<crate::types::Token>, filename: &str) -> String {
             SpecialCharacter(Assignment),
             Literal(value),
         ] => {
-            return format!("Var {var} = {{ TYPE_I8, .value.i8 = {value} }};");
+            return format!("Var {var} = {{ TYPE_I8, .value.i8 = (uint8_t){value} }};");
         }
         [
             Keyword(I16),
@@ -135,7 +135,7 @@ fn match_c_code(tokens: &Vec<crate::types::Token>, filename: &str) -> String {
             SpecialCharacter(Assignment),
             Literal(value),
         ] => {
-            return format!("Var {var} = {{ TYPE_I16, .value.i16 = {value} }};");
+            return format!("Var {var} = {{ TYPE_I16, .value.i16 = (uint16_t){value} }};");
         }
         [
             Keyword(I32),
@@ -143,7 +143,7 @@ fn match_c_code(tokens: &Vec<crate::types::Token>, filename: &str) -> String {
             SpecialCharacter(Assignment),
             Literal(value),
         ] => {
-            return format!("Var {var} = {{ TYPE_I32, .value.i32 = {value} }};");
+            return format!("Var {var} = {{ TYPE_I32, .value.i32 = (int32_t){value} }};");
         }
         [
             Keyword(I64),
@@ -151,7 +151,7 @@ fn match_c_code(tokens: &Vec<crate::types::Token>, filename: &str) -> String {
             SpecialCharacter(Assignment),
             Literal(value),
         ] => {
-            return format!("Var {var} = {{ TYPE_I64, .value.i64 = {value} }};");
+            return format!("Var {var} = {{ TYPE_I64, .value.i64 = (int64_t){value} }};");
         }
         [
             Keyword(U8),
@@ -159,7 +159,7 @@ fn match_c_code(tokens: &Vec<crate::types::Token>, filename: &str) -> String {
             SpecialCharacter(Assignment),
             Literal(value),
         ] => {
-            return format!("Var {var} = {{ TYPE_U8, .value.u8 = {value} }};");
+            return format!("Var {var} = {{ TYPE_U8, .value.u8 = (uint8_t){value} }};");
         }
         [
             Keyword(U16),
@@ -167,7 +167,7 @@ fn match_c_code(tokens: &Vec<crate::types::Token>, filename: &str) -> String {
             SpecialCharacter(Assignment),
             Literal(value),
         ] => {
-            return format!("Var {var} = {{ TYPE_U16, .value.u16 = {value} }};");
+            return format!("Var {var} = {{ TYPE_U16, .value.u16 = (uint16_t){value} }};");
         }
         [
             Keyword(U32),
@@ -175,7 +175,7 @@ fn match_c_code(tokens: &Vec<crate::types::Token>, filename: &str) -> String {
             SpecialCharacter(Assignment),
             Literal(value),
         ] => {
-            return format!("Var {var} = {{ TYPE_U32, .value.u32 = {value} }};");
+            return format!("Var {var} = {{ TYPE_U32, .value.u32 = (uint32_t){value} }};");
         }
         [
             Keyword(U64),
@@ -183,7 +183,7 @@ fn match_c_code(tokens: &Vec<crate::types::Token>, filename: &str) -> String {
             SpecialCharacter(Assignment),
             Literal(value),
         ] => {
-            return format!("Var {var} = {{ TYPE_U64, .value.u64 = {value} }};");
+            return format!("Var {var} = {{ TYPE_U64, .value.u64 = (uint64_t){value} }};");
         }
         [
             Keyword(F32),
@@ -191,7 +191,7 @@ fn match_c_code(tokens: &Vec<crate::types::Token>, filename: &str) -> String {
             SpecialCharacter(Assignment),
             Literal(value),
         ] => {
-            return format!("Var {var} = {{ TYPE_F32, .value.f32 = {value} }};");
+            return format!("Var {var} = {{ TYPE_F32, .value.f32 = (float){value} }};");
         }
         [
             Keyword(F64),
@@ -199,7 +199,7 @@ fn match_c_code(tokens: &Vec<crate::types::Token>, filename: &str) -> String {
             SpecialCharacter(Assignment),
             Literal(value),
         ] => {
-            return format!("Var {var} = {{ TYPE_F64, .value.f64 = {value} }};");
+            return format!("Var {var} = {{ TYPE_F64, .value.f64 = (double){value} }};");
         }
 
         [
