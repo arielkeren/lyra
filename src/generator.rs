@@ -86,6 +86,9 @@ fn match_c_code(tokens: &Vec<crate::types::Token>, filename: &str) -> String {
         [Keyword(Print), Literal(msg)] => {
             return format!("printf({msg});");
         }
+        [Keyword(Println), Literal(msg)] => {
+            return format!("printf({}\\n\");", msg.trim_end_matches("\""));
+        }
 
         [Keyword(I8), Identifier(var)] => {
             return format!("Var {var} = {{ TYPE_I8, .value.i8 = 0 }};");
