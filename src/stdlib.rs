@@ -46,9 +46,22 @@ typedef struct {
     } value;
 } Var;
 
+#define GET_VALUE(var)                              \
+    ((var).type == TYPE_F64   ? ((var).value.f64) \
+     : (var).type == TYPE_F32 ? ((var).value.f32) \
+     : (var).type == TYPE_I64 ? ((var).value.i64) \
+     : (var).type == TYPE_I32 ? ((var).value.i32) \
+     : (var).type == TYPE_I16 ? ((var).value.i16) \
+     : (var).type == TYPE_I8  ? ((var).value.i8)  \
+     : (var).type == TYPE_U64 ? ((var).value.u64) \
+     : (var).type == TYPE_U32 ? ((var).value.u32) \
+     : (var).type == TYPE_U16 ? ((var).value.u16) \
+     : (var).type == TYPE_U8  ? ((var).value.u8)  \
+                               : 0)
+
+void _assign(Var *var, double value);
 void _print(const Var *var);
 void _println(const Var *var);
-void _assign_var(Var *dest, const Var *src);
 
 #endif"#;
 
@@ -57,147 +70,37 @@ const STD_C: &str = r#"#include "std.h"
 #include <inttypes.h>
 #include <stdio.h>
 
-void _assign_var(Var *dest, const Var *src) {
-    switch (dest->type) {
+void _assign(Var *var, double value) {
+    switch (var->type) {
         case TYPE_I8:
-            switch (src->type) {
-                case TYPE_I8:   dest->value.i8  = src->value.i8; break;
-                case TYPE_I16:  dest->value.i8  = (int8_t)src->value.i16; break;
-                case TYPE_I32:  dest->value.i8  = (int8_t)src->value.i32; break;
-                case TYPE_I64:  dest->value.i8  = (int8_t)src->value.i64; break;
-                case TYPE_U8:   dest->value.i8  = (int8_t)src->value.u8; break;
-                case TYPE_U16:  dest->value.i8  = (int8_t)src->value.u16; break;
-                case TYPE_U32:  dest->value.i8  = (int8_t)src->value.u32; break;
-                case TYPE_U64:  dest->value.i8  = (int8_t)src->value.u64; break;
-                case TYPE_F32:  dest->value.i8  = (int8_t)src->value.f32; break;
-                case TYPE_F64:  dest->value.i8  = (int8_t)src->value.f64; break;
-            }
+            var->value.i8 = (int8_t)value;
             break;
         case TYPE_I16:
-            switch (src->type) {
-                case TYPE_I8:   dest->value.i16 = (int16_t)src->value.i8; break;
-                case TYPE_I16:  dest->value.i16 = src->value.i16; break;
-                case TYPE_I32:  dest->value.i16 = (int16_t)src->value.i32; break;
-                case TYPE_I64:  dest->value.i16 = (int16_t)src->value.i64; break;
-                case TYPE_U8:   dest->value.i16 = (int16_t)src->value.u8; break;
-                case TYPE_U16:  dest->value.i16 = (int16_t)src->value.u16; break;
-                case TYPE_U32:  dest->value.i16 = (int16_t)src->value.u32; break;
-                case TYPE_U64:  dest->value.i16 = (int16_t)src->value.u64; break;
-                case TYPE_F32:  dest->value.i16 = (int16_t)src->value.f32; break;
-                case TYPE_F64:  dest->value.i16 = (int16_t)src->value.f64; break;
-            }
+            var->value.i16 = (int16_t)value;
             break;
         case TYPE_I32:
-            switch (src->type) {
-                case TYPE_I8:   dest->value.i32 = (int32_t)src->value.i8; break;
-                case TYPE_I16:  dest->value.i32 = (int32_t)src->value.i16; break;
-                case TYPE_I32:  dest->value.i32 = src->value.i32; break;
-                case TYPE_I64:  dest->value.i32 = (int32_t)src->value.i64; break;
-                case TYPE_U8:   dest->value.i32 = (int32_t)src->value.u8; break;
-                case TYPE_U16:  dest->value.i32 = (int32_t)src->value.u16; break;
-                case TYPE_U32:  dest->value.i32 = (int32_t)src->value.u32; break;
-                case TYPE_U64:  dest->value.i32 = (int32_t)src->value.u64; break;
-                case TYPE_F32:  dest->value.i32 = (int32_t)src->value.f32; break;
-                case TYPE_F64:  dest->value.i32 = (int32_t)src->value.f64; break;
-            }
+            var->value.i32 = (int32_t)value;
             break;
         case TYPE_I64:
-            switch (src->type) {
-                case TYPE_I8:   dest->value.i64 = (int64_t)src->value.i8; break;
-                case TYPE_I16:  dest->value.i64 = (int64_t)src->value.i16; break;
-                case TYPE_I32:  dest->value.i64 = (int64_t)src->value.i32; break;
-                case TYPE_I64:  dest->value.i64 = src->value.i64; break;
-                case TYPE_U8:   dest->value.i64 = (int64_t)src->value.u8; break;
-                case TYPE_U16:  dest->value.i64 = (int64_t)src->value.u16; break;
-                case TYPE_U32:  dest->value.i64 = (int64_t)src->value.u32; break;
-                case TYPE_U64:  dest->value.i64 = (int64_t)src->value.u64; break;
-                case TYPE_F32:  dest->value.i64 = (int64_t)src->value.f32; break;
-                case TYPE_F64:  dest->value.i64 = (int64_t)src->value.f64; break;
-            }
+            var->value.i64 = (int64_t)value;
             break;
         case TYPE_U8:
-            switch (src->type) {
-                case TYPE_I8:   dest->value.u8  = (uint8_t)src->value.i8; break;
-                case TYPE_I16:  dest->value.u8  = (uint8_t)src->value.i16; break;
-                case TYPE_I32:  dest->value.u8  = (uint8_t)src->value.i32; break;
-                case TYPE_I64:  dest->value.u8  = (uint8_t)src->value.i64; break;
-                case TYPE_U8:   dest->value.u8  = src->value.u8; break;
-                case TYPE_U16:  dest->value.u8  = (uint8_t)src->value.u16; break;
-                case TYPE_U32:  dest->value.u8  = (uint8_t)src->value.u32; break;
-                case TYPE_U64:  dest->value.u8  = (uint8_t)src->value.u64; break;
-                case TYPE_F32:  dest->value.u8  = (uint8_t)src->value.f32; break;
-                case TYPE_F64:  dest->value.u8  = (uint8_t)src->value.f64; break;
-            }
+            var->value.u8 = (uint8_t)value;
             break;
         case TYPE_U16:
-            switch (src->type) {
-                case TYPE_I8:   dest->value.u16 = (uint16_t)src->value.i8; break;
-                case TYPE_I16:  dest->value.u16 = (uint16_t)src->value.i16; break;
-                case TYPE_I32:  dest->value.u16 = (uint16_t)src->value.i32; break;
-                case TYPE_I64:  dest->value.u16 = (uint16_t)src->value.i64; break;
-                case TYPE_U8:   dest->value.u16 = (uint16_t)src->value.u8; break;
-                case TYPE_U16:  dest->value.u16 = src->value.u16; break;
-                case TYPE_U32:  dest->value.u16 = (uint16_t)src->value.u32; break;
-                case TYPE_U64:  dest->value.u16 = (uint16_t)src->value.u64; break;
-                case TYPE_F32:  dest->value.u16 = (uint16_t)src->value.f32; break;
-                case TYPE_F64:  dest->value.u16 = (uint16_t)src->value.f64; break;
-            }
+            var->value.u16 = (uint16_t)value;
             break;
         case TYPE_U32:
-            switch (src->type) {
-                case TYPE_I8:   dest->value.u32 = (uint32_t)src->value.i8; break;
-                case TYPE_I16:  dest->value.u32 = (uint32_t)src->value.i16; break;
-                case TYPE_I32:  dest->value.u32 = (uint32_t)src->value.i32; break;
-                case TYPE_I64:  dest->value.u32 = (uint32_t)src->value.i64; break;
-                case TYPE_U8:   dest->value.u32 = (uint32_t)src->value.u8; break;
-                case TYPE_U16:  dest->value.u32 = (uint32_t)src->value.u16; break;
-                case TYPE_U32:  dest->value.u32 = src->value.u32; break;
-                case TYPE_U64:  dest->value.u32 = (uint32_t)src->value.u64; break;
-                case TYPE_F32:  dest->value.u32 = (uint32_t)src->value.f32; break;
-                case TYPE_F64:  dest->value.u32 = (uint32_t)src->value.f64; break;
-            }
+            var->value.u32 = (uint32_t)value;
             break;
         case TYPE_U64:
-            switch (src->type) {
-                case TYPE_I8:   dest->value.u64 = (uint64_t)src->value.i8; break;
-                case TYPE_I16:  dest->value.u64 = (uint64_t)src->value.i16; break;
-                case TYPE_I32:  dest->value.u64 = (uint64_t)src->value.i32; break;
-                case TYPE_I64:  dest->value.u64 = (uint64_t)src->value.i64; break;
-                case TYPE_U8:   dest->value.u64 = (uint64_t)src->value.u8; break;
-                case TYPE_U16:  dest->value.u64 = (uint64_t)src->value.u16; break;
-                case TYPE_U32:  dest->value.u64 = (uint64_t)src->value.u32; break;
-                case TYPE_U64:  dest->value.u64 = src->value.u64; break;
-                case TYPE_F32:  dest->value.u64 = (uint64_t)src->value.f32; break;
-                case TYPE_F64:  dest->value.u64 = (uint64_t)src->value.f64; break;
-            }
+            var->value.u64 = (uint64_t)value;
             break;
         case TYPE_F32:
-            switch (src->type) {
-                case TYPE_I8:   dest->value.f32 = (float)src->value.i8; break;
-                case TYPE_I16:  dest->value.f32 = (float)src->value.i16; break;
-                case TYPE_I32:  dest->value.f32 = (float)src->value.i32; break;
-                case TYPE_I64:  dest->value.f32 = (float)src->value.i64; break;
-                case TYPE_U8:   dest->value.f32 = (float)src->value.u8; break;
-                case TYPE_U16:  dest->value.f32 = (float)src->value.u16; break;
-                case TYPE_U32:  dest->value.f32 = (float)src->value.u32; break;
-                case TYPE_U64:  dest->value.f32 = (float)src->value.u64; break;
-                case TYPE_F32:  dest->value.f32 = src->value.f32; break;
-                case TYPE_F64:  dest->value.f32 = (float)src->value.f64; break;
-            }
+            var->value.f32 = (float)value;
             break;
         case TYPE_F64:
-            switch (src->type) {
-                case TYPE_I8:   dest->value.f64 = (double)src->value.i8; break;
-                case TYPE_I16:  dest->value.f64 = (double)src->value.i16; break;
-                case TYPE_I32:  dest->value.f64 = (double)src->value.i32; break;
-                case TYPE_I64:  dest->value.f64 = (double)src->value.i64; break;
-                case TYPE_U8:   dest->value.f64 = (double)src->value.u8; break;
-                case TYPE_U16:  dest->value.f64 = (double)src->value.u16; break;
-                case TYPE_U32:  dest->value.f64 = (double)src->value.u32; break;
-                case TYPE_U64:  dest->value.f64 = (double)src->value.u64; break;
-                case TYPE_F32:  dest->value.f64 = (double)src->value.f32; break;
-                case TYPE_F64:  dest->value.f64 = src->value.f64; break;
-            }
+            var->value.f64 = (double)value;
             break;
     }
 }

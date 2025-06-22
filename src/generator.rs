@@ -1,4 +1,5 @@
 use crate::types::Keyword::*;
+use crate::types::SpecialCharacter;
 use crate::types::SpecialCharacter::*;
 use crate::types::Token::*;
 
@@ -88,6 +89,51 @@ fn match_c_code(tokens: &Vec<crate::types::Token>, filename: &str) -> String {
         }
         [Keyword(Println), Literal(msg)] => {
             return format!("printf({}\\n\");", msg.trim_end_matches("\""));
+        }
+
+        [
+            Identifier(var),
+            SpecialCharacter(Assignment),
+            Literal(value),
+        ] => {
+            return format!("_assign_literal(&{var}, {value});");
+        }
+
+        [
+            Identifier(dest),
+            SpecialCharacter(Assignment),
+            Identifier(left),
+            SpecialCharacter(op),
+            Identifier(right),
+        ] => {
+            return gen_assign_op(dest, left, op, right, true, true);
+        }
+        [
+            Identifier(dest),
+            SpecialCharacter(Assignment),
+            Identifier(left),
+            SpecialCharacter(op),
+            Literal(right),
+        ] => {
+            return gen_assign_op(dest, left, op, right, true, false);
+        }
+        [
+            Identifier(dest),
+            SpecialCharacter(Assignment),
+            Literal(left),
+            SpecialCharacter(op),
+            Identifier(right),
+        ] => {
+            return gen_assign_op(dest, left, op, right, false, true);
+        }
+        [
+            Identifier(dest),
+            SpecialCharacter(Assignment),
+            Literal(left),
+            SpecialCharacter(op),
+            Literal(right),
+        ] => {
+            return gen_assign_op(dest, left, op, right, false, false);
         }
 
         [Keyword(I8), Identifier(var)] => {
@@ -209,7 +255,7 @@ fn match_c_code(tokens: &Vec<crate::types::Token>, filename: &str) -> String {
             Identifier(src),
         ] => {
             return format!(
-                "Var {dest} = {{ TYPE_I8, .value.i8 = 0 }};\n_assign_var(&{dest}, &{src});"
+                "Var {dest} = {{ TYPE_I8, .value.i8 = 0 }};\n_assign(&{dest}, GET_VALUE({src}));"
             );
         }
         [
@@ -219,7 +265,7 @@ fn match_c_code(tokens: &Vec<crate::types::Token>, filename: &str) -> String {
             Identifier(src),
         ] => {
             return format!(
-                "Var {dest} = {{ TYPE_I16, .value.i16 = 0 }};\n_assign_var(&{dest}, &{src});"
+                "Var {dest} = {{ TYPE_I16, .value.i16 = 0 }};\n_assign(&{dest}, GET_VALUE({src}));"
             );
         }
         [
@@ -229,7 +275,7 @@ fn match_c_code(tokens: &Vec<crate::types::Token>, filename: &str) -> String {
             Identifier(src),
         ] => {
             return format!(
-                "Var {dest} = {{ TYPE_I32, .value.i32 = 0 }};\n_assign_var(&{dest}, &{src});"
+                "Var {dest} = {{ TYPE_I32, .value.i32 = 0 }};\n_assign(&{dest}, GET_VALUE({src}));"
             );
         }
         [
@@ -239,7 +285,7 @@ fn match_c_code(tokens: &Vec<crate::types::Token>, filename: &str) -> String {
             Identifier(src),
         ] => {
             return format!(
-                "Var {dest} = {{ TYPE_I64, .value.i64 = 0 }};\n_assign_var(&{dest}, &{src});"
+                "Var {dest} = {{ TYPE_I64, .value.i64 = 0 }};\n_assign(&{dest}, GET_VALUE({src}));"
             );
         }
         [
@@ -249,7 +295,7 @@ fn match_c_code(tokens: &Vec<crate::types::Token>, filename: &str) -> String {
             Identifier(src),
         ] => {
             return format!(
-                "Var {dest} = {{ TYPE_U8, .value.u8 = 0 }};\n_assign_var(&{dest}, &{src});"
+                "Var {dest} = {{ TYPE_U8, .value.u8 = 0 }};\n_assign(&{dest}, GET_VALUE({src}));"
             );
         }
         [
@@ -259,7 +305,7 @@ fn match_c_code(tokens: &Vec<crate::types::Token>, filename: &str) -> String {
             Identifier(src),
         ] => {
             return format!(
-                "Var {dest} = {{ TYPE_U16, .value.u16 = 0 }};\n_assign_var(&{dest}, &{src});"
+                "Var {dest} = {{ TYPE_U16, .value.u16 = 0 }};\n_assign(&{dest}, GET_VALUE({src}));"
             );
         }
         [
@@ -269,7 +315,7 @@ fn match_c_code(tokens: &Vec<crate::types::Token>, filename: &str) -> String {
             Identifier(src),
         ] => {
             return format!(
-                "Var {dest} = {{ TYPE_U32, .value.u32 = 0 }};\n_assign_var(&{dest}, &{src});"
+                "Var {dest} = {{ TYPE_U32, .value.u32 = 0 }};\n_assign(&{dest}, GET_VALUE({src}));"
             );
         }
         [
@@ -279,7 +325,7 @@ fn match_c_code(tokens: &Vec<crate::types::Token>, filename: &str) -> String {
             Identifier(src),
         ] => {
             return format!(
-                "Var {dest} = {{ TYPE_U64, .value.u64 = 0 }};\n_assign_var(&{dest}, &{src});"
+                "Var {dest} = {{ TYPE_U64, .value.u64 = 0 }};\n_assign(&{dest}, GET_VALUE({src}));"
             );
         }
         [
@@ -289,7 +335,7 @@ fn match_c_code(tokens: &Vec<crate::types::Token>, filename: &str) -> String {
             Identifier(src),
         ] => {
             return format!(
-                "Var {dest} = {{ TYPE_F32, .value.f32 = 0.0 }};\n_assign_var(&{dest}, &{src});"
+                "Var {dest} = {{ TYPE_F32, .value.f32 = 0.0 }};\n_assign(&{dest}, GET_VALUE({src}));"
             );
         }
         [
@@ -299,7 +345,7 @@ fn match_c_code(tokens: &Vec<crate::types::Token>, filename: &str) -> String {
             Identifier(src),
         ] => {
             return format!(
-                "Var {dest} = {{ TYPE_F64, .value.f64 = 0.0 }};\n_assign_var(&{dest}, &{src});"
+                "Var {dest} = {{ TYPE_F64, .value.f64 = 0.0 }};\n_assign(&{dest}, GET_VALUE({src}));"
             );
         }
         _ => {
@@ -326,4 +372,40 @@ fn match_h_code(tokens: &Vec<crate::types::Token>, filename: &str) -> String {
             return "".to_string();
         }
     }
+}
+
+fn gen_assign_op(
+    dest: &str,
+    left: &str,
+    op: &SpecialCharacter,
+    right: &str,
+    left_is_var: bool,
+    right_is_var: bool,
+) -> String {
+    let left_expr = if left_is_var {
+        format!("GET_VALUE({})", left)
+    } else {
+        left.to_string()
+    };
+    let right_expr = if right_is_var {
+        format!("GET_VALUE({})", right)
+    } else {
+        right.to_string()
+    };
+    let op_expr = match op {
+        Plus => '+',
+        Minus => '-',
+        Multiply => '*',
+        Divide => '/',
+        Modulo => '%',
+        BitwiseAnd => '&',
+        BitwiseOr => '|',
+        BitwiseXor => '^',
+        _ => panic!("Unsupported operator: {:?}", op),
+    };
+
+    format!(
+        "_assign(&{}, {} {} {});",
+        dest, left_expr, op_expr, right_expr
+    )
 }
