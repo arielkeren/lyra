@@ -25,6 +25,8 @@ pub enum Keyword {
     Call,
     Import,
     Export,
+    True,
+    False,
     I8,
     I16,
     I32,
@@ -35,6 +37,8 @@ pub enum Keyword {
     U64,
     F32,
     F64,
+    Bool,
+    Char,
 }
 
 #[derive(Debug, PartialEq)]

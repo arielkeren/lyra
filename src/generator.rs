@@ -85,10 +85,10 @@ fn match_c_code(tokens: &Vec<crate::types::Token>, filename: &str) -> String {
             return format!("_println(&{var});");
         }
         [Keyword(Print), Literal(msg)] => {
-            return format!("printf({msg});");
+            return format!("printf(\"{msg}\");");
         }
         [Keyword(Println), Literal(msg)] => {
-            return format!("printf({}\\n\");", msg.trim_end_matches("\""));
+            return format!("printf(\"{msg}\\n\");");
         }
 
         [
@@ -165,6 +165,12 @@ fn match_c_code(tokens: &Vec<crate::types::Token>, filename: &str) -> String {
         }
         [Keyword(F64), Identifier(var)] => {
             return format!("Var {var} = {{ TYPE_F64, .value.f64 = 0.0 }};");
+        }
+        [Keyword(Bool), Identifier(var)] => {
+            return format!("Var {var} = {{ TYPE_BOOL, .value.b = false }};");
+        }
+        [Keyword(Char), Identifier(var)] => {
+            return format!("Var {var} = {{ TYPE_CHAR, .value.c = '\\0' }};");
         }
 
         [
@@ -246,6 +252,38 @@ fn match_c_code(tokens: &Vec<crate::types::Token>, filename: &str) -> String {
             Literal(value),
         ] => {
             return format!("Var {var} = {{ TYPE_F64, .value.f64 = (double){value} }};");
+        }
+        [
+            Keyword(Bool),
+            Identifier(var),
+            SpecialCharacter(Assignment),
+            Literal(value),
+        ] => {
+            return format!("Var {var} = {{ TYPE_BOOL, .value.b = (bool){value} }};");
+        }
+        [
+            Keyword(Bool),
+            Identifier(var),
+            SpecialCharacter(Assignment),
+            Keyword(True),
+        ] => {
+            return format!("Var {var} = {{ TYPE_BOOL, .value.b = true }};");
+        }
+        [
+            Keyword(Bool),
+            Identifier(var),
+            SpecialCharacter(Assignment),
+            Keyword(False),
+        ] => {
+            return format!("Var {var} = {{ TYPE_BOOL, .value.b = false }};");
+        }
+        [
+            Keyword(Char),
+            Identifier(var),
+            SpecialCharacter(Assignment),
+            Literal(value),
+        ] => {
+            return format!("Var {var} = {{ TYPE_CHAR, .value.c = (char)'{value}' }};");
         }
 
         [
@@ -346,6 +384,26 @@ fn match_c_code(tokens: &Vec<crate::types::Token>, filename: &str) -> String {
         ] => {
             return format!(
                 "Var {dest} = {{ TYPE_F64, .value.f64 = 0.0 }};\n_assign(&{dest}, GET_VALUE({src}));"
+            );
+        }
+        [
+            Keyword(Bool),
+            Identifier(dest),
+            SpecialCharacter(Assignment),
+            Identifier(src),
+        ] => {
+            return format!(
+                "Var {dest} = {{ TYPE_BOOL, .value.b = false }};\n_assign(&{dest}, GET_VALUE({src}));"
+            );
+        }
+        [
+            Keyword(Char),
+            Identifier(dest),
+            SpecialCharacter(Assignment),
+            Identifier(src),
+        ] => {
+            return format!(
+                "Var {dest} = {{ TYPE_CHAR, .value.c = '\\0' }};\n_assign(&{dest}, GET_VALUE({src}));"
             );
         }
         _ => {

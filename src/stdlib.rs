@@ -15,6 +15,7 @@ pub fn write_stdlib() {
 const STD_H: &str = r#"#ifndef STD_H
 #define STD_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
 typedef enum {
@@ -28,6 +29,8 @@ typedef enum {
     TYPE_U64,
     TYPE_F32,
     TYPE_F64,
+    TYPE_BOOL,
+    TYPE_CHAR,
 } VarType;
 
 typedef struct {
@@ -43,20 +46,24 @@ typedef struct {
         uint64_t u64;
         float f32;
         double f64;
+        bool b;
+        char c;
     } value;
 } Var;
 
-#define GET_VALUE(var)                              \
-    ((var).type == TYPE_F64   ? ((var).value.f64) \
-     : (var).type == TYPE_F32 ? ((var).value.f32) \
-     : (var).type == TYPE_I64 ? ((var).value.i64) \
-     : (var).type == TYPE_I32 ? ((var).value.i32) \
-     : (var).type == TYPE_I16 ? ((var).value.i16) \
-     : (var).type == TYPE_I8  ? ((var).value.i8)  \
-     : (var).type == TYPE_U64 ? ((var).value.u64) \
-     : (var).type == TYPE_U32 ? ((var).value.u32) \
-     : (var).type == TYPE_U16 ? ((var).value.u16) \
-     : (var).type == TYPE_U8  ? ((var).value.u8)  \
+#define GET_VALUE(var)                             \
+    ((var).type == TYPE_F64    ? ((var).value.f64) \
+     : (var).type == TYPE_F32  ? ((var).value.f32) \
+     : (var).type == TYPE_I64  ? ((var).value.i64) \
+     : (var).type == TYPE_I32  ? ((var).value.i32) \
+     : (var).type == TYPE_I16  ? ((var).value.i16) \
+     : (var).type == TYPE_I8   ? ((var).value.i8)  \
+     : (var).type == TYPE_U64  ? ((var).value.u64) \
+     : (var).type == TYPE_U32  ? ((var).value.u32) \
+     : (var).type == TYPE_U16  ? ((var).value.u16) \
+     : (var).type == TYPE_U8   ? ((var).value.u8)  \
+     : (var).type == TYPE_BOOL ? ((var).value.b)   \
+     : (var).type == TYPE_CHAR ? ((var).value.c)   \
                                : 0)
 
 void _assign(Var *var, double value);
@@ -68,6 +75,7 @@ void _println(const Var *var);
 const STD_C: &str = r#"#include "std.h"
 
 #include <inttypes.h>
+#include <stdbool.h>
 #include <stdio.h>
 
 void _assign(Var *var, double value) {
@@ -102,6 +110,12 @@ void _assign(Var *var, double value) {
         case TYPE_F64:
             var->value.f64 = (double)value;
             break;
+        case TYPE_BOOL:
+            var->value.b = (bool)value;
+            break;
+        case TYPE_CHAR:
+            var->value.c = (char)value;
+            break;
     }
 }
 
@@ -132,10 +146,16 @@ void _print(const Var *var) {
             printf("%" PRIu64, var->value.u64);
             break;
         case TYPE_F32:
-            printf("%f\n", var->value.f32);
+            printf("%f", var->value.f32);
             break;
         case TYPE_F64:
-            printf("%lf\n", var->value.f64);
+            printf("%lf", var->value.f64);
+            break;
+        case TYPE_BOOL:
+            printf("%s", var->value.b ? "true" : "false");
+            break;
+        case TYPE_CHAR:
+            printf("%c", var->value.c);
             break;
     }
 }
@@ -171,6 +191,12 @@ void _println(const Var *var) {
             break;
         case TYPE_F64:
             printf("%lf\n", var->value.f64);
+            break;
+        case TYPE_BOOL:
+            printf("%s\n", var->value.b ? "true" : "false");
+            break;
+        case TYPE_CHAR:
+            printf("%c\n", var->value.c);
             break;
     }
 }"#;
