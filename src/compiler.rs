@@ -98,7 +98,7 @@ fn get_header_writer(filename: &str) -> Writer {
 fn write_includes(writer: &mut Writer) {
     writeln!(
         writer,
-        "#include <stdio.h>\n#include <stdbool.h>\n#include \"std.h\"\n"
+        "#include <stdio.h>\n#include <stdlib.h>\n#include <stdbool.h>\n#include \"std.h\"\n"
     )
     .expect("Failed to write includes");
 }

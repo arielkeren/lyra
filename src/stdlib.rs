@@ -84,6 +84,7 @@ const STD_C: &str = r#"#include "std.h"
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 void _assign(Var *var, double value) {
     switch (var->type) {
