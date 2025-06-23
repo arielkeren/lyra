@@ -96,7 +96,7 @@ fn match_c_code(tokens: &Vec<Token>, filename: &str) -> String {
             format!("_println_item(&{list}, {index});")
         }
         [Keyword(Println), Identifier(var)] => format!("_println(&{var});"),
-        [Keyword(Println), Literal(msg)] => format!("printf(\"{msg}\\n\");"),
+        [Keyword(Println), Literal(text)] => format!("printf(\"{text}\\n\");"),
         [Keyword(Println), Keyword(True)] => "printf(\"true\\n\");".to_string(),
         [Keyword(Println), Keyword(False)] => "printf(\"false\\n\");".to_string(),
         [Keyword(Println)] => "printf(\"\\n\");".to_string(),
@@ -171,9 +171,16 @@ fn match_c_code(tokens: &Vec<Token>, filename: &str) -> String {
             Literal(right),
         ] => generate_operation_assignment(dest, left, op, right, false, false),
 
+        [
+            Identifier(var),
+            SpecialCharacter(Assignment),
+            Keyword(var_type),
+        ] => generate_variable_type_change(var, var_type),
+
         [Identifier(list), SpecialCharacter(Plus), Identifier(var)] => {
             format!("_append_var(&{list}, &{var});")
         }
+
         [Identifier(list), SpecialCharacter(Plus), Literal(value)] => {
             generate_append_literal(list, value)
         }
@@ -275,6 +282,11 @@ fn generate_operation_assignment(
         "_assign(&{}, {} {} {});",
         dest, left_expr, op_expr, right_expr
     )
+}
+
+fn generate_variable_type_change(var: &str, var_type: &Keyword) -> String {
+    let type_name = keyword_to_type(var_type);
+    format!("{var}.type = {type_name};\n_assign(&{var}, {var}.value);")
 }
 
 fn generate_append_literal(list: &str, value: &str) -> String {
