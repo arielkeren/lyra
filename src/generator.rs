@@ -107,7 +107,7 @@ fn match_c_code(tokens: &Vec<Token>, filename: &str) -> String {
             Identifier(dest),
             SpecialCharacter(Assignment),
             Identifier(src),
-        ] => generate_variable_initilization(var_type, dest, src),
+        ] => generate_variable_initialization(var_type, dest, src),
         [
             Keyword(var_type),
             Identifier(var),
@@ -120,13 +120,13 @@ fn match_c_code(tokens: &Vec<Token>, filename: &str) -> String {
             Identifier(var),
             SpecialCharacter(Assignment),
             Keyword(True),
-        ] => format!("Var {var} = {{ TYPE_BOOL, .value.b = true }};"),
+        ] => format!("Var {var} = {{ TYPE_BOOL, 1.0 }};"),
         [
             Keyword(Bool),
             Identifier(var),
             SpecialCharacter(Assignment),
             Keyword(False),
-        ] => format!("Var {var} = {{ TYPE_BOOL, .value.b = false }};"),
+        ] => format!("Var {var} = {{ TYPE_BOOL, 0.0 }};"),
 
         [
             Identifier(var),
@@ -205,60 +205,11 @@ fn match_h_code(tokens: &Vec<Token>, filename: &str) -> String {
     }
 }
 
-fn keyword_to_type(keyword: &Keyword) -> (String, String, String) {
+fn keyword_to_type(keyword: &Keyword) -> String {
     match keyword {
-        I8 => (
-            "TYPE_I8".to_string(),
-            "i8".to_string(),
-            "int8_t".to_string(),
-        ),
-        I16 => (
-            "TYPE_I16".to_string(),
-            "i16".to_string(),
-            "int16_t".to_string(),
-        ),
-        I32 => (
-            "TYPE_I32".to_string(),
-            "i32".to_string(),
-            "int32_t".to_string(),
-        ),
-        I64 => (
-            "TYPE_I64".to_string(),
-            "i64".to_string(),
-            "int64_t".to_string(),
-        ),
-        U8 => (
-            "TYPE_U8".to_string(),
-            "u8".to_string(),
-            "uint8_t".to_string(),
-        ),
-        U16 => (
-            "TYPE_U16".to_string(),
-            "u16".to_string(),
-            "uint16_t".to_string(),
-        ),
-        U32 => (
-            "TYPE_U32".to_string(),
-            "u32".to_string(),
-            "uint32_t".to_string(),
-        ),
-        U64 => (
-            "TYPE_U64".to_string(),
-            "u64".to_string(),
-            "uint64_t".to_string(),
-        ),
-        F32 => (
-            "TYPE_F32".to_string(),
-            "f32".to_string(),
-            "float".to_string(),
-        ),
-        F64 => (
-            "TYPE_F64".to_string(),
-            "f64".to_string(),
-            "double".to_string(),
-        ),
-        Bool => ("TYPE_BOOL".to_string(), "b".to_string(), "bool".to_string()),
-        Char => ("TYPE_CHAR".to_string(), "c".to_string(), "char".to_string()),
+        Number => "TYPE_NUMBER".to_string(),
+        Bool => "TYPE_BOOL".to_string(),
+        Char => "TYPE_CHAR".to_string(),
         _ => panic!("Expected a type, but got: {:?}", keyword),
     }
 }
@@ -268,25 +219,23 @@ fn generate_declaration(var_type: &Keyword, var: &str) -> String {
         return format!("List {var} = _create_list();");
     }
 
-    let (enum_type, union_type, _) = keyword_to_type(var_type);
-    format!("Var {var} = {{ {enum_type}, .value.{union_type} = 0 }};")
+    let type_name = keyword_to_type(var_type);
+    format!("Var {var} = {{ {type_name}, .value = 0.0 }};")
 }
 
 fn generate_literal_initialization(var_type: &Keyword, var: &str, value: &str) -> String {
-    let (enum_type, union_type, c_type) = keyword_to_type(var_type);
+    let type_name = keyword_to_type(var_type);
 
-    if var_type == &Char {
-        format!("Var {var} = {{ {enum_type}, .value.{union_type} = (char)'{value}' }};")
+    if value.parse::<f64>().is_ok() {
+        format!("Var {var} = {{ {type_name}, .value = 0.0 }};\n_assign(&{var}, {value});")
     } else {
-        format!("Var {var} = {{ {enum_type}, .value.{union_type} = ({c_type}){value} }};")
+        format!("Var {var} = {{ {type_name}, .value = '{value}' }};")
     }
 }
 
-fn generate_variable_initilization(var_type: &Keyword, dest: &str, src: &str) -> String {
-    let (enum_type, union_type, _) = keyword_to_type(var_type);
-    format!(
-        "Var {dest} = {{ {enum_type}, .value.{union_type} = 0 }};\n_assign(&{dest}, GET_VALUE({src}));"
-    )
+fn generate_variable_initialization(var_type: &Keyword, dest: &str, src: &str) -> String {
+    let type_name = keyword_to_type(var_type);
+    format!("Var {dest} = {{ {type_name}, .value = 0.0 }};\n_assign(&{dest}, {src}.value);")
 }
 
 fn generate_operation_assignment(
@@ -298,12 +247,12 @@ fn generate_operation_assignment(
     right_is_var: bool,
 ) -> String {
     let left_expr = if left_is_var {
-        format!("GET_VALUE({})", left)
+        format!("{left}.value")
     } else {
         left.to_string()
     };
     let right_expr = if right_is_var {
-        format!("GET_VALUE({})", right)
+        format!("{right}.value")
     } else {
         right.to_string()
     };
@@ -326,8 +275,6 @@ fn generate_operation_assignment(
 }
 
 fn generate_append_literal(list: &str, literal_type: &Keyword, value: &str) -> String {
-    let (enum_type, union_type, c_type) = keyword_to_type(literal_type);
-    format!(
-        "_append_var(&{list}, &(Var){{ {enum_type}, .value.{union_type} = ({c_type}){value} }});"
-    )
+    let type_name = keyword_to_type(literal_type);
+    format!("_append_literal(&{list}, {type_name}, {value});")
 }

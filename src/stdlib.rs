@@ -15,40 +15,17 @@ pub fn write_stdlib() {
 const STD_H: &str = r#"#ifndef STD_H
 #define STD_H
 
-#include <stdbool.h>
-#include <stdint.h>
+#include <stddef.h>
 
 typedef enum {
-    TYPE_I8,
-    TYPE_I16,
-    TYPE_I32,
-    TYPE_I64,
-    TYPE_U8,
-    TYPE_U16,
-    TYPE_U32,
-    TYPE_U64,
-    TYPE_F32,
-    TYPE_F64,
+    TYPE_NUMBER,
     TYPE_BOOL,
     TYPE_CHAR,
-} VarType;
+} Type;
 
 typedef struct {
-    VarType type;
-    union {
-        int8_t i8;
-        int16_t i16;
-        int32_t i32;
-        int64_t i64;
-        uint8_t u8;
-        uint16_t u16;
-        uint32_t u32;
-        uint64_t u64;
-        float f32;
-        double f64;
-        bool b;
-        char c;
-    } value;
+    Type type;
+    double value;
 } Var;
 
 typedef struct {
@@ -57,23 +34,10 @@ typedef struct {
     Var *data;
 } List;
 
-#define GET_VALUE(var)                             \
-    ((var).type == TYPE_F64    ? ((var).value.f64) \
-     : (var).type == TYPE_F32  ? ((var).value.f32) \
-     : (var).type == TYPE_I64  ? ((var).value.i64) \
-     : (var).type == TYPE_I32  ? ((var).value.i32) \
-     : (var).type == TYPE_I16  ? ((var).value.i16) \
-     : (var).type == TYPE_I8   ? ((var).value.i8)  \
-     : (var).type == TYPE_U64  ? ((var).value.u64) \
-     : (var).type == TYPE_U32  ? ((var).value.u32) \
-     : (var).type == TYPE_U16  ? ((var).value.u16) \
-     : (var).type == TYPE_U8   ? ((var).value.u8)  \
-     : (var).type == TYPE_BOOL ? ((var).value.b)   \
-     : (var).type == TYPE_CHAR ? ((var).value.c)   \
-                               : 0)
-
+double _convert(Type type, double value);
 void _assign(Var *var, double value);
 void _append_var(List *list, const Var *var);
+void _append_literal(List *list, Type type, double value);
 void _print(const Var *var);
 void _println(const Var *var);
 void _print_item(const List *list, size_t index);
@@ -85,8 +49,6 @@ void _free_memory();
 
 const STD_C: &str = r#"#include "std.h"
 
-#include <inttypes.h>
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -94,54 +56,36 @@ const STD_C: &str = r#"#include "std.h"
 static Var *lists_to_free[MAX_LISTS];
 static size_t list_count = 0;
 
-void _assign(Var *var, double value) {
-    switch (var->type) {
-        case TYPE_I8:
-            var->value.i8 = (int8_t)value;
-            break;
-        case TYPE_I16:
-            var->value.i16 = (int16_t)value;
-            break;
-        case TYPE_I32:
-            var->value.i32 = (int32_t)value;
-            break;
-        case TYPE_I64:
-            var->value.i64 = (int64_t)value;
-            break;
-        case TYPE_U8:
-            var->value.u8 = (uint8_t)value;
-            break;
-        case TYPE_U16:
-            var->value.u16 = (uint16_t)value;
-            break;
-        case TYPE_U32:
-            var->value.u32 = (uint32_t)value;
-            break;
-        case TYPE_U64:
-            var->value.u64 = (uint64_t)value;
-            break;
-        case TYPE_F32:
-            var->value.f32 = (float)value;
-            break;
-        case TYPE_F64:
-            var->value.f64 = (double)value;
-            break;
+static unsigned char _is_char(double value) {
+    return (value >= 0 && value <= 127 && value == (int)value);
+}
+
+double _convert(Type type, double value) {
+    switch (type) {
+        case TYPE_NUMBER:
+            return value;
         case TYPE_BOOL:
-            var->value.b = (bool)value;
-            break;
+            return (value == 0.0) ? 0.0 : 1.0;
         case TYPE_CHAR:
-            var->value.c = (char)value;
-            break;
+            if (_is_char(value)) return value;
+            return 0.0;
     }
 }
 
+void _assign(Var *var, double value) {
+    var->value = _convert(var->type, value);
+}
+
 void _append_var(List *list, const Var *var) {
+    Var *new_data;
+    size_t i;
+
     if (list->length >= list->capacity) {
         list->capacity *= 2;
-        Var *new_data = realloc(list->data, sizeof(Var) * list->capacity);
+        new_data = realloc(list->data, sizeof(Var) * list->capacity);
 
         if (new_data != list->data) {
-            for (size_t i = 0; i < list_count; i++) {
+            for (i = 0; i < list_count; i++) {
                 if (lists_to_free[i] == list->data) {
                     lists_to_free[i] = new_data;
                     break;
@@ -154,84 +98,37 @@ void _append_var(List *list, const Var *var) {
     list->data[list->length++] = *var;
 }
 
+void _append_literal(List *list, Type type, double value) {
+    Var var;
+    var.type = type;
+    var.value = _convert(type, value);
+    _append_var(list, &var);
+}
+
 void _print(const Var *var) {
     switch (var->type) {
-        case TYPE_I8:
-            printf("%" PRId8, var->value.i8);
-            break;
-        case TYPE_I16:
-            printf("%" PRId16, var->value.i16);
-            break;
-        case TYPE_I32:
-            printf("%" PRId32, var->value.i32);
-            break;
-        case TYPE_I64:
-            printf("%" PRId64, var->value.i64);
-            break;
-        case TYPE_U8:
-            printf("%" PRIu8, var->value.u8);
-            break;
-        case TYPE_U16:
-            printf("%" PRIu16, var->value.u16);
-            break;
-        case TYPE_U32:
-            printf("%" PRIu32, var->value.u32);
-            break;
-        case TYPE_U64:
-            printf("%" PRIu64, var->value.u64);
-            break;
-        case TYPE_F32:
-            printf("%f", var->value.f32);
-            break;
-        case TYPE_F64:
-            printf("%lf", var->value.f64);
+        case TYPE_NUMBER:
+            printf("%lf", var->value);
             break;
         case TYPE_BOOL:
-            printf("%s", var->value.b ? "true" : "false");
+            printf("%s", var->value == 0.0 ? "false" : "true");
             break;
         case TYPE_CHAR:
-            printf("%c", var->value.c);
+            if (_is_char(var->value)) printf("%c", (char)var->value);
             break;
     }
 }
 
 void _println(const Var *var) {
     switch (var->type) {
-        case TYPE_I8:
-            printf("%" PRId8 "\n", var->value.i8);
-            break;
-        case TYPE_I16:
-            printf("%" PRId16 "\n", var->value.i16);
-            break;
-        case TYPE_I32:
-            printf("%" PRId32 "\n", var->value.i32);
-            break;
-        case TYPE_I64:
-            printf("%" PRId64 "\n", var->value.i64);
-            break;
-        case TYPE_U8:
-            printf("%" PRIu8 "\n", var->value.u8);
-            break;
-        case TYPE_U16:
-            printf("%" PRIu16 "\n", var->value.u16);
-            break;
-        case TYPE_U32:
-            printf("%" PRIu32 "\n", var->value.u32);
-            break;
-        case TYPE_U64:
-            printf("%" PRIu64 "\n", var->value.u64);
-            break;
-        case TYPE_F32:
-            printf("%f\n", var->value.f32);
-            break;
-        case TYPE_F64:
-            printf("%lf\n", var->value.f64);
+        case TYPE_NUMBER:
+            printf("%lf\n", var->value);
             break;
         case TYPE_BOOL:
-            printf("%s\n", var->value.b ? "true" : "false");
+            printf("%s\n", var->value == 0.0 ? "false" : "true");
             break;
         case TYPE_CHAR:
-            printf("%c\n", var->value.c);
+            if (_is_char(var->value)) printf("%c\n", (char)var->value);
             break;
     }
 }
@@ -249,9 +146,9 @@ void _println_item(const List *list, size_t index) {
 }
 
 List _create_list() {
+    List list;
     if (list_count >= MAX_LISTS) exit(1);
 
-    List list;
     list.length = 0;
     list.capacity = 8;
     list.data = malloc(sizeof(Var) * list.capacity);
@@ -261,6 +158,7 @@ List _create_list() {
 }
 
 void _free_memory() {
-    for (size_t i = 0; i < list_count; i++) free(lists_to_free[i]);
+    size_t i;
+    for (i = 0; i < list_count; i++) free(lists_to_free[i]);
     list_count = 0;
 }"#;
