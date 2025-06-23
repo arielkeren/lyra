@@ -14,8 +14,8 @@ pub enum SpecialCharacter {
     BitwiseAnd,
     BitwiseOr,
     BitwiseXor,
-    OpenParenthesis,
-    CloseParenthesis,
+    OpenSquareBracket,
+    CloseSquareBracket,
 }
 
 #[derive(Debug, PartialEq)]

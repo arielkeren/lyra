@@ -72,11 +72,29 @@ fn match_c_code(tokens: &Vec<Token>, filename: &str) -> String {
             Identifier(function),
         ] => format!("_{}_public_{function}();", file.trim_end_matches(".ly")),
 
+        [
+            Keyword(Print),
+            Identifier(list),
+            SpecialCharacter(OpenSquareBracket),
+            Literal(index),
+            SpecialCharacter(CloseSquareBracket),
+        ] => {
+            format!("_print_item(&{list}, {index});")
+        }
         [Keyword(Print), Identifier(var)] => format!("_print(&{var});"),
         [Keyword(Print), Literal(msg)] => format!("printf(\"{msg}\");"),
         [Keyword(Print), Keyword(True)] => "printf(\"true\");".to_string(),
         [Keyword(Print), Keyword(False)] => "printf(\"false\");".to_string(),
 
+        [
+            Keyword(Println),
+            Identifier(list),
+            SpecialCharacter(OpenSquareBracket),
+            Literal(index),
+            SpecialCharacter(CloseSquareBracket),
+        ] => {
+            format!("_println_item(&{list}, {index});")
+        }
         [Keyword(Println), Identifier(var)] => format!("_println(&{var});"),
         [Keyword(Println), Literal(msg)] => format!("printf(\"{msg}\\n\");"),
         [Keyword(Println), Keyword(True)] => "printf(\"true\\n\");".to_string(),

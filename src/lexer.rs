@@ -81,8 +81,8 @@ fn get_special_character(ch: char) -> Option<crate::types::SpecialCharacter> {
         '&' => Some(BitwiseAnd),
         '|' => Some(BitwiseOr),
         '^' => Some(BitwiseXor),
-        '(' => Some(OpenParenthesis),
-        ')' => Some(CloseParenthesis),
+        '[' => Some(OpenSquareBracket),
+        ']' => Some(CloseSquareBracket),
         _ => None,
     }
 }

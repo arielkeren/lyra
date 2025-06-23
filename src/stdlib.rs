@@ -76,6 +76,8 @@ void _assign(Var *var, double value);
 void _append_var(List *list, const Var *var);
 void _print(const Var *var);
 void _println(const Var *var);
+void _print_item(const List *list, size_t index);
+void _println_item(const List *list, size_t index);
 
 #endif"#;
 
@@ -214,5 +216,17 @@ void _println(const Var *var) {
         case TYPE_CHAR:
             printf("%c\n", var->value.c);
             break;
+    }
+}
+
+void _print_item(const List *list, size_t index) {
+    if (index < list->length) {
+        _print(&list->data[index]);
+    }
+}
+
+void _println_item(const List *list, size_t index) {
+    if (index < list->length) {
+        _println(&list->data[index]);
     }
 }"#;
