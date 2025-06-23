@@ -265,9 +265,7 @@ fn keyword_to_type(keyword: &Keyword) -> (String, String, String) {
 
 fn generate_declaration(var_type: &Keyword, var: &str) -> String {
     if var_type == &List {
-        return format!(
-            "List {var} = {{ .length = 0, .capacity = 8, .data = malloc(sizeof(Var) * 8) }};"
-        );
+        return format!("List {var} = _create_list();");
     }
 
     let (enum_type, union_type, _) = keyword_to_type(var_type);

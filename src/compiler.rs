@@ -113,7 +113,8 @@ fn write_header_guard(filename: &str, header_writer: &mut Option<Writer>) {
 
 fn write_ending(filename: &str, writer: &mut Writer) {
     if filename == "main.ly" {
-        write!(writer, "\nreturn 0;\n}}").expect("Failed to write main function end");
+        write!(writer, "_free_memory();\nreturn 0;\n}}")
+            .expect("Failed to write main function end");
     } else {
         write!(writer, "}}").expect("Failed to write function end");
     }

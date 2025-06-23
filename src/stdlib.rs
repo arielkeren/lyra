@@ -78,6 +78,8 @@ void _print(const Var *var);
 void _println(const Var *var);
 void _print_item(const List *list, size_t index);
 void _println_item(const List *list, size_t index);
+List _create_list();
+void _free_memory();
 
 #endif"#;
 
@@ -87,6 +89,10 @@ const STD_C: &str = r#"#include "std.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#define MAX_LISTS 1000
+static Var *lists_to_free[MAX_LISTS];
+static size_t list_count = 0;
 
 void _assign(Var *var, double value) {
     switch (var->type) {
@@ -132,7 +138,18 @@ void _assign(Var *var, double value) {
 void _append_var(List *list, const Var *var) {
     if (list->length >= list->capacity) {
         list->capacity *= 2;
-        list->data = realloc(list->data, sizeof(Var) * list->capacity);
+        Var *new_data = realloc(list->data, sizeof(Var) * list->capacity);
+
+        if (new_data != list->data) {
+            for (size_t i = 0; i < list_count; i++) {
+                if (lists_to_free[i] == list->data) {
+                    lists_to_free[i] = new_data;
+                    break;
+                }
+            }
+        }
+
+        list->data = new_data;
     }
     list->data[list->length++] = *var;
 }
@@ -229,4 +246,21 @@ void _println_item(const List *list, size_t index) {
     if (index < list->length) {
         _println(&list->data[index]);
     }
+}
+
+List _create_list() {
+    if (list_count >= MAX_LISTS) exit(1);
+
+    List list;
+    list.length = 0;
+    list.capacity = 8;
+    list.data = malloc(sizeof(Var) * list.capacity);
+
+    lists_to_free[list_count++] = list.data;
+    return list;
+}
+
+void _free_memory() {
+    for (size_t i = 0; i < list_count; i++) free(lists_to_free[i]);
+    list_count = 0;
 }"#;
