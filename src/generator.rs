@@ -156,6 +156,12 @@ fn match_c_code(tokens: &Vec<Token>, filename: &str) -> String {
         [Identifier(list), SpecialCharacter(Plus), Identifier(var)] => {
             format!("_append_var(&{list}, &{var});")
         }
+        [
+            Identifier(list),
+            SpecialCharacter(Plus),
+            Keyword(literal_type),
+            Literal(value),
+        ] => generate_append_literal(list, literal_type, value),
 
         _ => {
             panic!("Unexpected token sequence in file: {filename} - {tokens:?}")
@@ -300,5 +306,12 @@ fn generate_operation_assignment(
     format!(
         "_assign(&{}, {} {} {});",
         dest, left_expr, op_expr, right_expr
+    )
+}
+
+fn generate_append_literal(list: &str, literal_type: &Keyword, value: &str) -> String {
+    let (enum_type, union_type, c_type) = keyword_to_type(literal_type);
+    format!(
+        "_append_var(&{list}, &(Var){{ {enum_type}, .value.{union_type} = ({c_type}){value} }});"
     )
 }
