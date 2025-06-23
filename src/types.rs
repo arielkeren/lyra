@@ -27,6 +27,7 @@ pub enum Keyword {
     Export,
     True,
     False,
+    List,
     I8,
     I16,
     I32,

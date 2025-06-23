@@ -96,6 +96,7 @@ fn get_keyword(word: &str) -> Option<crate::types::Keyword> {
         "export" => Some(Export),
         "true" => Some(True),
         "false" => Some(False),
+        "list" => Some(List),
         "i8" => Some(I8),
         "i16" => Some(I16),
         "i32" => Some(I32),

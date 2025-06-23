@@ -51,6 +51,12 @@ typedef struct {
     } value;
 } Var;
 
+typedef struct {
+    size_t length;
+    size_t capacity;
+    Var *data;
+} List;
+
 #define GET_VALUE(var)                             \
     ((var).type == TYPE_F64    ? ((var).value.f64) \
      : (var).type == TYPE_F32  ? ((var).value.f32) \
@@ -67,6 +73,7 @@ typedef struct {
                                : 0)
 
 void _assign(Var *var, double value);
+void _append_var(List *list, const Var *var);
 void _print(const Var *var);
 void _println(const Var *var);
 
@@ -117,6 +124,14 @@ void _assign(Var *var, double value) {
             var->value.c = (char)value;
             break;
     }
+}
+
+void _append_var(List *list, const Var *var) {
+    if (list->length >= list->capacity) {
+        list->capacity *= 2;
+        list->data = realloc(list->data, sizeof(Var) * list->capacity);
+    }
+    list->data[list->length++] = *var;
 }
 
 void _print(const Var *var) {

@@ -153,6 +153,10 @@ fn match_c_code(tokens: &Vec<Token>, filename: &str) -> String {
             Literal(right),
         ] => generate_operation_assignment(dest, left, op, right, false, false),
 
+        [Identifier(list), SpecialCharacter(Plus), Identifier(var)] => {
+            format!("_append_var(&{list}, &{var});")
+        }
+
         _ => {
             panic!("Unexpected token sequence in file: {filename} - {tokens:?}")
         }
@@ -236,6 +240,12 @@ fn keyword_to_type(keyword: &Keyword) -> (String, String, String) {
 }
 
 fn generate_declaration(var_type: &Keyword, var: &str) -> String {
+    if var_type == &List {
+        return format!(
+            "List {var} = {{ .length = 0, .capacity = 8, .data = malloc(sizeof(Var) * 8) }};"
+        );
+    }
+
     let (enum_type, union_type, _) = keyword_to_type(var_type);
     format!("Var {var} = {{ {enum_type}, .value.{union_type} = 0 }};")
 }
