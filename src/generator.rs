@@ -272,9 +272,6 @@ fn generate_operation_assignment(
         Multiply => '*',
         Divide => '/',
         Modulo => '%',
-        BitwiseAnd => '&',
-        BitwiseOr => '|',
-        BitwiseXor => '^',
         _ => panic!("Expected a binary operator, but got: {:?}", op),
     };
 

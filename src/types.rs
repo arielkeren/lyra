@@ -11,9 +11,6 @@ pub enum SpecialCharacter {
     Multiply,
     Divide,
     Modulo,
-    BitwiseAnd,
-    BitwiseOr,
-    BitwiseXor,
     OpenSquareBracket,
     CloseSquareBracket,
 }
