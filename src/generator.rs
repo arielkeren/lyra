@@ -9,25 +9,39 @@ pub fn generate(
     tokens: &Vec<Token>,
     filename: &str,
     after_imports: bool,
+    tabs: u8,
+    last_tabs: u8,
 ) -> (String, String, bool) {
+    let scope = if tabs > last_tabs {
+        "{\n"
+    } else if tabs < last_tabs {
+        "}\n"
+    } else {
+        ""
+    };
+
     if let Some(first) = tokens.first() {
         if !after_imports && first != &Keyword(Import) {
             if filename == "main.ly" {
                 return (
-                    format!("int main() {{\n{}", match_c_code(tokens, filename)),
+                    format!(
+                        "int main() {{\n{}{}",
+                        scope,
+                        match_c_code(tokens, filename, tabs)
+                    ),
                     "".to_string(),
                     true,
                 );
             }
 
             return (
-                match_c_code(tokens, filename),
+                format!("{}{}", scope, match_c_code(tokens, filename, tabs)),
                 match_h_code(tokens, filename),
                 true,
             );
         } else if tokens.contains(&SpecialCharacter(Colon)) {
             return (
-                format!("}}\n\n{}", match_c_code(tokens, filename)),
+                format!("}}\n\n{}{}", scope, match_c_code(tokens, filename, tabs)),
                 match_h_code(tokens, filename),
                 true,
             );
@@ -39,16 +53,16 @@ pub fn generate(
     }
 
     (
-        match_c_code(tokens, filename),
+        format!("{}{}", scope, match_c_code(tokens, filename, tabs)),
         match_h_code(tokens, filename),
         after_imports,
     )
 }
 
-fn match_c_code(tokens: &Vec<Token>, filename: &str) -> String {
+fn match_c_code(tokens: &Vec<Token>, filename: &str, tabs: u8) -> String {
     let filename = filename.trim_end_matches(".ly");
 
-    match tokens.as_slice() {
+    let code = match tokens.as_slice() {
         [] => "".to_string(),
 
         [Keyword(Import), Identifier(file)] => {
@@ -194,7 +208,9 @@ fn match_c_code(tokens: &Vec<Token>, filename: &str) -> String {
         _ => {
             panic!("Unexpected token sequence in file: {filename} - {tokens:?}")
         }
-    }
+    };
+
+    add_tabs_after_newlines(&code, tabs)
 }
 
 fn match_h_code(tokens: &Vec<Token>, filename: &str) -> String {
@@ -213,6 +229,15 @@ fn match_h_code(tokens: &Vec<Token>, filename: &str) -> String {
 
         _ => "".to_string(),
     }
+}
+
+fn add_tabs_after_newlines(code: &str, tabs: u8) -> String {
+    let tab_str = "\t".repeat(tabs as usize);
+    code.lines()
+        .enumerate()
+        .map(|(_, line)| format!("{}{}", tab_str, line))
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 fn keyword_to_type(keyword: &Keyword) -> String {

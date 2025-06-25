@@ -2,12 +2,23 @@ use crate::types::Keyword::*;
 use crate::types::SpecialCharacter::*;
 use crate::types::Token::*;
 
-pub fn get_tokens(line: &str) -> Vec<crate::types::Token> {
+pub fn get_tokens(line: &str) -> (Vec<crate::types::Token>, u8) {
     let mut tokens = Vec::new();
     let mut chars = line.chars().peekable();
+    let mut spaces = 0;
 
     while let Some(&ch) = chars.peek() {
-        if ch.is_whitespace() {
+        if ch == '\t' {
+            if tokens.len() == 0 {
+                spaces += 4;
+            }
+            chars.next();
+        } else if ch == ' ' {
+            if tokens.len() == 0 {
+                spaces += 1;
+            }
+            chars.next();
+        } else if ch.is_whitespace() {
             chars.next();
         } else if ch == '#' {
             break;
@@ -61,7 +72,7 @@ pub fn get_tokens(line: &str) -> Vec<crate::types::Token> {
         }
     }
 
-    tokens
+    (tokens, spaces / 4)
 }
 
 fn is_special_character(ch: char) -> bool {

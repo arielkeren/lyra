@@ -61,14 +61,15 @@ fn generate_c_file(filename: &str, reader: &mut Reader, writer: &mut Writer) {
     } else {
         Some(get_header_writer(filename))
     };
+    let mut last_tabs = 0;
 
     write_header_guard(filename, &mut header_writer);
 
     for line in reader.lines() {
         let line = line.expect("Failed to read line from input file");
-        let tokens = crate::lexer::get_tokens(&line);
+        let (tokens, tabs) = crate::lexer::get_tokens(&line);
         (c_code, h_code, after_imports) =
-            crate::generator::generate(&tokens, filename, after_imports);
+            crate::generator::generate(&tokens, filename, after_imports, tabs, last_tabs);
 
         if !c_code.is_empty() {
             writeln!(writer, "{}", c_code).expect("Failed to write to output file");
@@ -79,6 +80,8 @@ fn generate_c_file(filename: &str, reader: &mut Reader, writer: &mut Writer) {
                 writeln!(h_writer, "{}", h_code).expect("Failed to write to header file");
             }
         }
+
+        last_tabs = tabs;
     }
 
     write_ending(filename, writer);
