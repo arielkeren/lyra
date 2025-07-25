@@ -263,10 +263,10 @@ fn generate_expression(expression: &[Token]) -> String {
         panic!("Expression requires at least one token");
     }
 
-    let mut is_last_token_exclamation_mark = false;
     let mut is_first_token = true;
     let mut expression_str = String::new();
-    for token in expression {
+    let mut tokens = expression.iter().peekable();
+    while let Some(token) = tokens.next() {
         match token {
             Identifier(var) => expression_str.push_str(&format!("{var}.value")),
             Literal(value) => {
@@ -278,25 +278,37 @@ fn generate_expression(expression: &[Token]) -> String {
             }
             SpecialCharacter(OpenParenthesis) => expression_str.push_str("("),
             SpecialCharacter(CloseParenthesis) => expression_str.push_str(")"),
-            SpecialCharacter(Assignment) => {
-                if is_last_token_exclamation_mark {
-                    expression_str.push_str("= ");
-                } else {
-                    expression_str.push_str(" == ");
-                }
-            }
-            SpecialCharacter(ExclamationMark) => {
-                if is_first_token {
-                    expression_str.push_str("!");
-                } else {
-                    expression_str.push_str(" !");
-                }
-            }
             SpecialCharacter(Plus) => expression_str.push_str(" + "),
             SpecialCharacter(Minus) => expression_str.push_str(" - "),
             SpecialCharacter(Multiply) => expression_str.push_str(" * "),
             SpecialCharacter(Divide) => expression_str.push_str(" / "),
             SpecialCharacter(Modulo) => expression_str.push_str(" % "),
+            SpecialCharacter(Assignment) => expression_str.push_str(" == "),
+            SpecialCharacter(LargerThan) => {
+                if tokens.peek() == Some(&&SpecialCharacter(Assignment)) {
+                    expression_str.push_str(" >= ");
+                    tokens.next();
+                } else {
+                    expression_str.push_str(" > ");
+                }
+            }
+            SpecialCharacter(SmallerThan) => {
+                if tokens.peek() == Some(&&SpecialCharacter(Assignment)) {
+                    expression_str.push_str(" <= ");
+                    tokens.next();
+                } else {
+                    expression_str.push_str(" < ");
+                }
+            }
+            SpecialCharacter(ExclamationMark) => {
+                let space_before = if is_first_token { "" } else { " " };
+                if tokens.peek() == Some(&&SpecialCharacter(Assignment)) {
+                    expression_str.push_str(&format!("{space_before}!= "));
+                    tokens.next();
+                } else {
+                    expression_str.push_str(&format!("{space_before}!"));
+                }
+            }
             Keyword(True) => expression_str.push_str("true"),
             Keyword(False) => expression_str.push_str("false"),
             Keyword(And) => expression_str.push_str(" && "),
@@ -305,11 +317,6 @@ fn generate_expression(expression: &[Token]) -> String {
         }
 
         is_first_token = false;
-        if token == &SpecialCharacter(ExclamationMark) {
-            is_last_token_exclamation_mark = true;
-        } else {
-            is_last_token_exclamation_mark = false;
-        }
     }
 
     expression_str

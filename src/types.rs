@@ -12,6 +12,8 @@ pub enum SpecialCharacter {
     Multiply,
     Divide,
     Modulo,
+    LargerThan,
+    SmallerThan,
     OpenParenthesis,
     CloseParenthesis,
 }
