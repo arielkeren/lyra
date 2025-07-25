@@ -11,7 +11,18 @@ pub fn generate(
     tabs: u8,
     last_tabs: u8,
 ) -> (String, String, bool) {
-    let scope = if tabs < last_tabs { "}\n" } else { "" };
+    let scope = if tabs < last_tabs {
+        (0..last_tabs - tabs)
+            .map(|i| {
+                let brace_tabs = last_tabs - 1 - i;
+                format!("{}}}", "\t".repeat(brace_tabs as usize))
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+            + "\n"
+    } else {
+        "".to_string()
+    };
 
     if let Some(first) = tokens.first() {
         if !after_imports && first != &Keyword(Import) {
@@ -220,8 +231,7 @@ fn match_h_code(tokens: &Vec<Token>, filename: &str) -> String {
 fn add_tabs_after_newlines(code: &str, tabs: u8) -> String {
     let tab_str = "\t".repeat(tabs as usize);
     code.lines()
-        .enumerate()
-        .map(|(_, line)| format!("{}{}", tab_str, line))
+        .map(|line| format!("{}{}", tab_str, line))
         .collect::<Vec<_>>()
         .join("\n")
 }
