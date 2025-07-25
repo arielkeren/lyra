@@ -89,8 +89,6 @@ fn get_special_character(ch: char) -> Option<crate::types::SpecialCharacter> {
         '*' => Some(Multiply),
         '/' => Some(Divide),
         '%' => Some(Modulo),
-        '[' => Some(OpenSquareBracket),
-        ']' => Some(CloseSquareBracket),
         _ => None,
     }
 }

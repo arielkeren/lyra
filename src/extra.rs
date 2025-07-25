@@ -1,9 +1,7 @@
 pub fn delete_build() {
     let build_dir = std::path::Path::new("build");
-    if build_dir.exists() {
-        if std::fs::remove_dir_all(build_dir).is_err() {
-            println!("Failed to remove build directory");
-        }
+    if build_dir.exists() && std::fs::remove_dir_all(build_dir).is_err() {
+        println!("Failed to remove build directory");
     }
 }
 

@@ -83,11 +83,18 @@ fn match_c_code(tokens: &Vec<Token>, filename: &str, tabs: u8) -> String {
         [
             Keyword(Print),
             Identifier(list),
-            SpecialCharacter(OpenSquareBracket),
+            SpecialCharacter(Dot),
             Literal(index),
-            SpecialCharacter(CloseSquareBracket),
         ] => {
             format!("_print_item(&{list}, {index});")
+        }
+        [
+            Keyword(Print),
+            Identifier(list),
+            SpecialCharacter(Dot),
+            Identifier(index),
+        ] => {
+            format!("_print_item(&{list}, (int){index}.value);")
         }
         [Keyword(Print), Identifier(var)] => format!("_print(&{var});"),
         [Keyword(Print), Literal(msg)] => format!("printf(\"{msg}\");"),
@@ -97,11 +104,18 @@ fn match_c_code(tokens: &Vec<Token>, filename: &str, tabs: u8) -> String {
         [
             Keyword(Println),
             Identifier(list),
-            SpecialCharacter(OpenSquareBracket),
+            SpecialCharacter(Dot),
             Literal(index),
-            SpecialCharacter(CloseSquareBracket),
         ] => {
             format!("_println_item(&{list}, {index});")
+        }
+        [
+            Keyword(Println),
+            Identifier(list),
+            SpecialCharacter(Dot),
+            Identifier(index),
+        ] => {
+            format!("_print_item(&{list}, (int){index}.value);")
         }
         [Keyword(Println), Identifier(var)] => format!("_println(&{var});"),
         [Keyword(Println), Literal(text)] => format!("printf(\"{text}\\n\");"),
@@ -160,7 +174,9 @@ fn match_c_code(tokens: &Vec<Token>, filename: &str, tabs: u8) -> String {
             Identifier(var),
             SpecialCharacter(Assignment),
             Keyword(var_type),
-        ] => generate_variable_type_change(var, var_type),
+        ] if matches!(var_type, Int | Float | Bool | Char) => {
+            generate_variable_type_change(var, var_type)
+        }
 
         [Identifier(list), SpecialCharacter(Plus), Identifier(var)] => {
             format!("_append_var(&{list}, &{var});")

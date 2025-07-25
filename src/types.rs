@@ -11,8 +11,6 @@ pub enum SpecialCharacter {
     Multiply,
     Divide,
     Modulo,
-    OpenSquareBracket,
-    CloseSquareBracket,
 }
 
 #[derive(Debug, PartialEq)]
