@@ -35,6 +35,7 @@ typedef struct {
     Var *data;
 } List;
 
+double _mod(double a, double b);
 double _convert(Type type, double value);
 void _assign(Var *var, double value);
 void _append_var(List *list, const Var *var);
@@ -50,6 +51,7 @@ void _free_memory();
 
 const STD_C: &str = r#"#include "std.h"
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -59,6 +61,14 @@ static size_t list_count = 0;
 
 static unsigned char _is_char(double value) {
     return (value >= 0.0 && value <= 127.0 && value == (int)value);
+}
+
+double _mod(double a, double b) {
+    if (b == 0.0) {
+        fprintf(stderr, "Error: Division by zero in modulo operation.\n");
+        exit(EXIT_FAILURE);
+    }
+    return fmod(a, b);
 }
 
 double _convert(Type type, double value) {
@@ -156,7 +166,10 @@ void _println_item(const List *list, size_t index) {
 
 List _create_list() {
     List list;
-    if (list_count >= MAX_LISTS) exit(1);
+    if (list_count >= MAX_LISTS) {
+        fprintf(stderr, "Error: Maximum number of lists exceeded.\n");
+        exit(EXIT_FAILURE);
+    }
 
     list.length = 0;
     list.capacity = 8;

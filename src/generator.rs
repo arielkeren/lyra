@@ -283,12 +283,50 @@ fn generate_expression(expression: &[Token]) -> String {
     let mut tokens = expression.iter().peekable();
     while let Some(token) = tokens.next() {
         match token {
-            Identifier(var) => expression_str.push_str(&format!("{var}.value")),
-            Literal(value) => {
-                if value.parse::<f64>().is_ok() {
-                    expression_str.push_str(value);
+            Identifier(var) => {
+                if tokens.peek() == Some(&&SpecialCharacter(Modulo)) {
+                    tokens.next();
+                    if let Some(next_token) = tokens.next() {
+                        if let Literal(next_value) = next_token {
+                            if next_value.parse::<f64>().is_ok() {
+                                expression_str
+                                    .push_str(&format!("_mod({var}.value, {next_value})"));
+                            } else {
+                                expression_str
+                                    .push_str(&format!("_mod({var}.value, '{next_value}')"));
+                            }
+                        } else if let Identifier(next_var) = next_token {
+                            expression_str
+                                .push_str(&format!("_mod({var}.value, {next_var}.value)"));
+                        }
+                    }
                 } else {
-                    expression_str.push_str(&format!("'{value}'"));
+                    expression_str.push_str(&format!("{var}.value"));
+                }
+            }
+            Literal(value) => {
+                let to_push = if value.parse::<f64>().is_ok() {
+                    value.to_string()
+                } else {
+                    format!("'{value}'")
+                };
+
+                if tokens.peek() == Some(&&SpecialCharacter(Modulo)) {
+                    tokens.next();
+                    if let Some(next_token) = tokens.next() {
+                        if let Literal(next_value) = next_token {
+                            if next_value.parse::<f64>().is_ok() {
+                                expression_str.push_str(&format!("_mod({to_push}, {next_value})"));
+                            } else {
+                                expression_str
+                                    .push_str(&format!("_mod({to_push}, '{next_value}')"));
+                            }
+                        } else if let Identifier(next_var) = next_token {
+                            expression_str.push_str(&format!("_mod({to_push}, {next_var}.value)"));
+                        }
+                    }
+                } else {
+                    expression_str.push_str(&to_push);
                 }
             }
             SpecialCharacter(OpenParenthesis) => expression_str.push_str("("),
@@ -297,7 +335,6 @@ fn generate_expression(expression: &[Token]) -> String {
             SpecialCharacter(Minus) => expression_str.push_str(" - "),
             SpecialCharacter(Multiply) => expression_str.push_str(" * "),
             SpecialCharacter(Divide) => expression_str.push_str(" / "),
-            SpecialCharacter(Modulo) => expression_str.push_str(" % "),
             SpecialCharacter(Assignment) => expression_str.push_str(" == "),
             SpecialCharacter(LargerThan) => {
                 if tokens.peek() == Some(&&SpecialCharacter(Assignment)) {
