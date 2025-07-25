@@ -59,6 +59,9 @@ fn match_c_code(tokens: &Vec<Token>, filename: &str, tabs: u8) -> String {
     let code = match tokens.as_slice() {
         [] => "".to_string(),
 
+        [Keyword(Break)] => "break;".to_string(),
+        [Keyword(Continue)] => "continue;".to_string(),
+
         [Keyword(Import), Identifier(file)] => {
             format!("#include \"{}.h\"\n", file.trim_end_matches(".ly"))
         }

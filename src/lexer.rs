@@ -110,6 +110,8 @@ fn get_keyword(word: &str) -> Option<crate::types::Keyword> {
         "float" => Some(Float),
         "bool" => Some(Bool),
         "char" => Some(Char),
+        "break" => Some(Break),
+        "continue" => Some(Continue),
         _ => None,
     }
 }

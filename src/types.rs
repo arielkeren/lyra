@@ -30,6 +30,8 @@ pub enum Keyword {
     Float,
     Bool,
     Char,
+    Break,
+    Continue,
 }
 
 #[derive(Debug, PartialEq)]
