@@ -84,11 +84,14 @@ fn get_special_character(ch: char) -> Option<crate::types::SpecialCharacter> {
         '=' => Some(Assignment),
         ':' => Some(Colon),
         '.' => Some(Dot),
+        '!' => Some(ExclamationMark),
         '+' => Some(Plus),
         '-' => Some(Minus),
         '*' => Some(Multiply),
         '/' => Some(Divide),
         '%' => Some(Modulo),
+        '(' => Some(OpenParenthesis),
+        ')' => Some(CloseParenthesis),
         _ => None,
     }
 }
@@ -112,6 +115,9 @@ fn get_keyword(word: &str) -> Option<crate::types::Keyword> {
         "char" => Some(Char),
         "break" => Some(Break),
         "continue" => Some(Continue),
+        "and" => Some(And),
+        "or" => Some(Or),
+        "not" => Some(Not),
         _ => None,
     }
 }

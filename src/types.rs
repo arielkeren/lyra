@@ -6,11 +6,14 @@ pub enum SpecialCharacter {
     Assignment,
     Colon,
     Dot,
+    ExclamationMark,
     Plus,
     Minus,
     Multiply,
     Divide,
     Modulo,
+    OpenParenthesis,
+    CloseParenthesis,
 }
 
 #[derive(Debug, PartialEq)]
@@ -32,6 +35,9 @@ pub enum Keyword {
     Char,
     Break,
     Continue,
+    And,
+    Or,
+    Not,
 }
 
 #[derive(Debug, PartialEq)]

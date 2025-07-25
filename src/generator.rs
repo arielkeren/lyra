@@ -1,6 +1,5 @@
 use crate::types::Keyword;
 use crate::types::Keyword::*;
-use crate::types::SpecialCharacter;
 use crate::types::SpecialCharacter::*;
 use crate::types::Token;
 use crate::types::Token::*;
@@ -126,52 +125,19 @@ fn match_c_code(tokens: &Vec<Token>, filename: &str, tabs: u8) -> String {
         [Keyword(Println), Keyword(False)] => "printf(\"false\\n\");".to_string(),
         [Keyword(Println)] => "printf(\"\\n\");".to_string(),
 
-        [Keyword(type_name), Identifier(var)] if matches!(type_name, Int | Float | Bool | Char) => {
-            generate_declaration(type_name, var)
-        }
-
-        [
-            Identifier(var),
-            SpecialCharacter(Assignment),
-            Literal(value),
-        ] => generate_assignment(var, value),
-        [Identifier(var), SpecialCharacter(Assignment), Keyword(True)] => {
-            format!("_assign(&{var}, true);")
+        [Keyword(var_type), Identifier(var)]
+            if matches!(var_type, List | Int | Float | Bool | Char) =>
+        {
+            generate_declaration(var_type, var)
         }
         [
+            Keyword(var_type),
             Identifier(var),
             SpecialCharacter(Assignment),
-            Keyword(False),
-        ] => format!("_assign(&{var}, false);"),
-
-        [
-            Identifier(dest),
-            SpecialCharacter(Assignment),
-            Identifier(left),
-            SpecialCharacter(op),
-            Identifier(right),
-        ] => generate_operation_assignment(dest, left, op, right, true, true),
-        [
-            Identifier(dest),
-            SpecialCharacter(Assignment),
-            Identifier(left),
-            SpecialCharacter(op),
-            Literal(right),
-        ] => generate_operation_assignment(dest, left, op, right, true, false),
-        [
-            Identifier(dest),
-            SpecialCharacter(Assignment),
-            Literal(left),
-            SpecialCharacter(op),
-            Identifier(right),
-        ] => generate_operation_assignment(dest, left, op, right, false, true),
-        [
-            Identifier(dest),
-            SpecialCharacter(Assignment),
-            Literal(left),
-            SpecialCharacter(op),
-            Literal(right),
-        ] => generate_operation_assignment(dest, left, op, right, false, false),
+            expression @ ..,
+        ] if matches!(var_type, Int | Float | Bool | Char) => {
+            generate_initialization(var_type, var, expression)
+        }
 
         [
             Identifier(var),
@@ -180,6 +146,12 @@ fn match_c_code(tokens: &Vec<Token>, filename: &str, tabs: u8) -> String {
         ] if matches!(var_type, Int | Float | Bool | Char) => {
             generate_variable_type_change(var, var_type)
         }
+
+        [
+            Identifier(var),
+            SpecialCharacter(Assignment),
+            expression @ ..,
+        ] => format!("_assign(&{var}, {});", generate_expression(expression)),
 
         [Identifier(list), SpecialCharacter(Plus), Identifier(var)] => {
             format!("_append_var(&{list}, &{var});")
@@ -194,13 +166,15 @@ fn match_c_code(tokens: &Vec<Token>, filename: &str, tabs: u8) -> String {
             format!("_append_literal(&{list}, TYPE_BOOL, 0.0);")
         }
 
-        [Keyword(If), Identifier(condition)] => format!("if ({condition}.value) {{"),
+        [Keyword(If), condition @ ..] => format!("if ({}) {{", generate_expression(condition)),
         [Keyword(Else)] => "else {".to_string(),
-        [Keyword(Else), Keyword(If), Identifier(condition)] => {
-            format!("else if ({condition}.value) {{")
+        [Keyword(Else), Keyword(If), condition @ ..] => {
+            format!("else if ({}) {{", generate_expression(condition))
         }
 
-        [Keyword(While), Identifier(condition)] => format!("while ({condition}.value) {{"),
+        [Keyword(While), condition @ ..] => {
+            format!("while ({}) {{", generate_expression(condition))
+        }
 
         _ => {
             panic!("Unexpected token sequence in file: {filename} - {tokens:?}")
@@ -253,51 +227,18 @@ fn generate_declaration(var_type: &Keyword, var: &str) -> String {
     }
 
     let type_name = keyword_to_type(var_type);
-    format!("Var {var} = {{ {type_name}, .value = 0.0 }};")
+    format!("Var {var} = {{ {type_name}, 0.0 }};")
 }
 
-fn generate_assignment(var: &str, value: &str) -> String {
-    if value.parse::<f64>().is_ok() {
-        format!("_assign(&{var}, {value});")
-    } else {
-        format!("_assign(&{var}, '{value}');")
+fn generate_initialization(var_type: &Keyword, var: &str, expression: &[Token]) -> String {
+    if expression.is_empty() {
+        panic!("Initialization cannot be empty");
     }
-}
 
-fn generate_operation_assignment(
-    dest: &str,
-    left: &str,
-    op: &SpecialCharacter,
-    right: &str,
-    left_is_var: bool,
-    right_is_var: bool,
-) -> String {
-    let left_expr = if left_is_var {
-        format!("{left}.value")
-    } else if left.parse::<f64>().is_ok() {
-        left.to_string()
-    } else {
-        format!("'{left}'")
-    };
-    let right_expr = if right_is_var {
-        format!("{right}.value")
-    } else if right.parse::<f64>().is_ok() {
-        right.to_string()
-    } else {
-        format!("'{right}'")
-    };
-    let op_expr = match op {
-        Plus => '+',
-        Minus => '-',
-        Multiply => '*',
-        Divide => '/',
-        Modulo => '%',
-        _ => panic!("Expected a binary operator, but got: {:?}", op),
-    };
-
+    let type_name = keyword_to_type(var_type);
     format!(
-        "_assign(&{}, {} {} {});",
-        dest, left_expr, op_expr, right_expr
+        "Var {var} = {{ {type_name}, 0.0 }};\n_assign(&{var}, {});",
+        generate_expression(expression)
     )
 }
 
@@ -307,10 +248,69 @@ fn generate_variable_type_change(var: &str, var_type: &Keyword) -> String {
 }
 
 fn generate_append_literal(list: &str, value: &str) -> String {
-    let type_name = if value.parse::<f64>().is_ok() {
-        "TYPE_NUMBER"
+    let type_name = if value.parse::<i64>().is_ok() {
+        "TYPE_INT"
+    } else if value.parse::<f64>().is_ok() {
+        "TYPE_FLOAT"
     } else {
         "TYPE_CHAR"
     };
     format!("_append_literal(&{list}, {type_name}, {value});")
+}
+
+fn generate_expression(expression: &[Token]) -> String {
+    if expression.is_empty() {
+        panic!("Expression requires at least one token");
+    }
+
+    let mut is_last_token_exclamation_mark = false;
+    let mut is_first_token = true;
+    let mut expression_str = String::new();
+    for token in expression {
+        match token {
+            Identifier(var) => expression_str.push_str(&format!("{var}.value")),
+            Literal(value) => {
+                if value.parse::<f64>().is_ok() {
+                    expression_str.push_str(value);
+                } else {
+                    expression_str.push_str(&format!("'{value}'"));
+                }
+            }
+            SpecialCharacter(OpenParenthesis) => expression_str.push_str("("),
+            SpecialCharacter(CloseParenthesis) => expression_str.push_str(")"),
+            SpecialCharacter(Assignment) => {
+                if is_last_token_exclamation_mark {
+                    expression_str.push_str("= ");
+                } else {
+                    expression_str.push_str(" == ");
+                }
+            }
+            SpecialCharacter(ExclamationMark) => {
+                if is_first_token {
+                    expression_str.push_str("!");
+                } else {
+                    expression_str.push_str(" !");
+                }
+            }
+            SpecialCharacter(Plus) => expression_str.push_str(" + "),
+            SpecialCharacter(Minus) => expression_str.push_str(" - "),
+            SpecialCharacter(Multiply) => expression_str.push_str(" * "),
+            SpecialCharacter(Divide) => expression_str.push_str(" / "),
+            SpecialCharacter(Modulo) => expression_str.push_str(" % "),
+            Keyword(True) => expression_str.push_str("true"),
+            Keyword(False) => expression_str.push_str("false"),
+            Keyword(And) => expression_str.push_str(" && "),
+            Keyword(Or) => expression_str.push_str(" || "),
+            _ => panic!("Unexpected token in expression: {:?}", token),
+        }
+
+        is_first_token = false;
+        if token == &SpecialCharacter(ExclamationMark) {
+            is_last_token_exclamation_mark = true;
+        } else {
+            is_last_token_exclamation_mark = false;
+        }
+    }
+
+    expression_str
 }
