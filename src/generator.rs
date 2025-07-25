@@ -12,13 +12,7 @@ pub fn generate(
     tabs: u8,
     last_tabs: u8,
 ) -> (String, String, bool) {
-    let scope = if tabs > last_tabs {
-        "{\n"
-    } else if tabs < last_tabs {
-        "}\n"
-    } else {
-        ""
-    };
+    let scope = if tabs < last_tabs { "}\n" } else { "" };
 
     if let Some(first) = tokens.first() {
         if !after_imports && first != &Keyword(Import) {
@@ -115,38 +109,15 @@ fn match_c_code(tokens: &Vec<Token>, filename: &str, tabs: u8) -> String {
         [Keyword(Println), Keyword(False)] => "printf(\"false\\n\");".to_string(),
         [Keyword(Println)] => "printf(\"\\n\");".to_string(),
 
-        [Keyword(var_type), Identifier(var)] => generate_declaration(&var_type, var),
-        [
-            Keyword(var_type),
-            Identifier(dest),
-            SpecialCharacter(Assignment),
-            Identifier(src),
-        ] => generate_variable_initialization(var_type, dest, src),
-        [
-            Keyword(var_type),
-            Identifier(var),
-            SpecialCharacter(Assignment),
-            Literal(value),
-        ] => generate_literal_initialization(&var_type, var, value),
-
-        [
-            Keyword(Bool),
-            Identifier(var),
-            SpecialCharacter(Assignment),
-            Keyword(True),
-        ] => format!("Var {var} = {{ TYPE_BOOL, 1.0 }};"),
-        [
-            Keyword(Bool),
-            Identifier(var),
-            SpecialCharacter(Assignment),
-            Keyword(False),
-        ] => format!("Var {var} = {{ TYPE_BOOL, 0.0 }};"),
+        [Keyword(type_name), Identifier(var)] if matches!(type_name, Int | Float | Bool | Char) => {
+            generate_declaration(type_name, var)
+        }
 
         [
             Identifier(var),
             SpecialCharacter(Assignment),
             Literal(value),
-        ] => format!("_assign(&{var}, {value});"),
+        ] => generate_assignment(var, value),
         [Identifier(var), SpecialCharacter(Assignment), Keyword(True)] => {
             format!("_assign(&{var}, true);")
         }
@@ -194,7 +165,6 @@ fn match_c_code(tokens: &Vec<Token>, filename: &str, tabs: u8) -> String {
         [Identifier(list), SpecialCharacter(Plus), Identifier(var)] => {
             format!("_append_var(&{list}, &{var});")
         }
-
         [Identifier(list), SpecialCharacter(Plus), Literal(value)] => {
             generate_append_literal(list, value)
         }
@@ -204,6 +174,14 @@ fn match_c_code(tokens: &Vec<Token>, filename: &str, tabs: u8) -> String {
         [Identifier(list), SpecialCharacter(Plus), Keyword(False)] => {
             format!("_append_literal(&{list}, TYPE_BOOL, 0.0);")
         }
+
+        [Keyword(If), Identifier(condition)] => format!("if ({condition}.value) {{"),
+        [Keyword(Else)] => "else {".to_string(),
+        [Keyword(Else), Keyword(If), Identifier(condition)] => {
+            format!("else if ({condition}.value) {{")
+        }
+
+        [Keyword(While), Identifier(condition)] => format!("while ({condition}.value) {{"),
 
         _ => {
             panic!("Unexpected token sequence in file: {filename} - {tokens:?}")
@@ -242,7 +220,8 @@ fn add_tabs_after_newlines(code: &str, tabs: u8) -> String {
 
 fn keyword_to_type(keyword: &Keyword) -> String {
     match keyword {
-        Number => "TYPE_NUMBER".to_string(),
+        Int => "TYPE_INT".to_string(),
+        Float => "TYPE_FLOAT".to_string(),
         Bool => "TYPE_BOOL".to_string(),
         Char => "TYPE_CHAR".to_string(),
         _ => panic!("Expected a type, but got: {:?}", keyword),
@@ -258,19 +237,12 @@ fn generate_declaration(var_type: &Keyword, var: &str) -> String {
     format!("Var {var} = {{ {type_name}, .value = 0.0 }};")
 }
 
-fn generate_literal_initialization(var_type: &Keyword, var: &str, value: &str) -> String {
-    let type_name = keyword_to_type(var_type);
-
+fn generate_assignment(var: &str, value: &str) -> String {
     if value.parse::<f64>().is_ok() {
-        format!("Var {var} = {{ {type_name}, .value = 0.0 }};\n_assign(&{var}, {value});")
+        format!("_assign(&{var}, {value});")
     } else {
-        format!("Var {var} = {{ {type_name}, .value = '{value}' }};")
+        format!("_assign(&{var}, '{value}');")
     }
-}
-
-fn generate_variable_initialization(var_type: &Keyword, dest: &str, src: &str) -> String {
-    let type_name = keyword_to_type(var_type);
-    format!("Var {dest} = {{ {type_name}, .value = 0.0 }};\n_assign(&{dest}, {src}.value);")
 }
 
 fn generate_operation_assignment(
@@ -283,13 +255,17 @@ fn generate_operation_assignment(
 ) -> String {
     let left_expr = if left_is_var {
         format!("{left}.value")
-    } else {
+    } else if left.parse::<f64>().is_ok() {
         left.to_string()
+    } else {
+        format!("'{left}'")
     };
     let right_expr = if right_is_var {
         format!("{right}.value")
-    } else {
+    } else if right.parse::<f64>().is_ok() {
         right.to_string()
+    } else {
+        format!("'{right}'")
     };
     let op_expr = match op {
         Plus => '+',

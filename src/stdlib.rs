@@ -18,7 +18,8 @@ const STD_H: &str = r#"#ifndef STD_H
 #include <stddef.h>
 
 typedef enum {
-    TYPE_NUMBER,
+    TYPE_INT,
+    TYPE_FLOAT,
     TYPE_BOOL,
     TYPE_CHAR,
 } Type;
@@ -57,12 +58,14 @@ static Var *lists_to_free[MAX_LISTS];
 static size_t list_count = 0;
 
 static unsigned char _is_char(double value) {
-    return (value >= 0 && value <= 127 && value == (int)value);
+    return (value >= 0.0 && value <= 127.0 && value == (int)value);
 }
 
 double _convert(Type type, double value) {
     switch (type) {
-        case TYPE_NUMBER:
+        case TYPE_INT:
+            return (int)value;
+        case TYPE_FLOAT:
             return value;
         case TYPE_BOOL:
             return (value == 0.0) ? 0.0 : 1.0;
@@ -107,7 +110,10 @@ void _append_literal(List *list, Type type, double value) {
 
 void _print(const Var *var) {
     switch (var->type) {
-        case TYPE_NUMBER:
+        case TYPE_INT:
+            printf("%d", (int)var->value);
+            break;
+        case TYPE_FLOAT:
             printf("%lf", var->value);
             break;
         case TYPE_BOOL:
@@ -121,7 +127,10 @@ void _print(const Var *var) {
 
 void _println(const Var *var) {
     switch (var->type) {
-        case TYPE_NUMBER:
+        case TYPE_INT:
+            printf("%d\n", (int)var->value);
+            break;
+        case TYPE_FLOAT:
             printf("%lf\n", var->value);
             break;
         case TYPE_BOOL:
