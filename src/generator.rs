@@ -125,6 +125,21 @@ fn match_c_code(tokens: &Vec<Token>, filename: &str, tabs: u8) -> String {
         [Keyword(Println), Keyword(False)] => "printf(\"false\\n\");".to_string(),
         [Keyword(Println)] => "printf(\"\\n\");".to_string(),
 
+        [
+            Identifier(var),
+            SpecialCharacter(Plus),
+            SpecialCharacter(Plus),
+        ] => {
+            format!("++{var}.value;")
+        }
+        [
+            Identifier(var),
+            SpecialCharacter(Minus),
+            SpecialCharacter(Minus),
+        ] => {
+            format!("--{var}.value;")
+        }
+
         [Keyword(var_type), Identifier(var)]
             if matches!(var_type, List | Int | Float | Bool | Char) =>
         {
