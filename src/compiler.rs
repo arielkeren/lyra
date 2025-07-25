@@ -72,17 +72,28 @@ fn generate_c_file(filename: &str, reader: &mut Reader, writer: &mut Writer) {
             crate::generator::generate(&tokens, filename, after_imports, tabs, last_tabs);
 
         if !c_code.is_empty() {
-            writeln!(writer, "{}", c_code).expect("Failed to write to output file");
+            writeln!(writer, "{c_code}").expect("Failed to write to output file");
         }
 
         if let Some(h_writer) = &mut header_writer {
             if !h_code.is_empty() {
-                writeln!(h_writer, "{}", h_code).expect("Failed to write to header file");
+                writeln!(h_writer, "{h_code}").expect("Failed to write to header file");
             }
         }
 
         last_tabs = tabs;
     }
+
+    let scope = (0..last_tabs)
+        .map(|i| {
+            let brace_tabs = last_tabs - 1 - i;
+            format!("{}}}", "\t".repeat(brace_tabs as usize))
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+        + "\n";
+
+    write!(writer, "{scope}").expect("Failed to write scope end");
 
     write_ending(filename, writer);
     write_header_ending(&mut header_writer);
