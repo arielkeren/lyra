@@ -47,7 +47,6 @@ void _free_memory();
 
 const STD_C: &str = r#"#include "std.h"
 
-#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -64,7 +63,9 @@ double _mod(double a, double b) {
         fprintf(stderr, "Error: Division by zero in modulo operation.\n");
         exit(EXIT_FAILURE);
     }
-    return fmod(a, b);
+
+    if (b < 0.0) b = -b;
+    return a - (b * (double)(long)(a / b));
 }
 
 double _convert(Type type, double value) {
