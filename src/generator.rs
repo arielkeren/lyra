@@ -95,67 +95,29 @@ fn match_c_code(tokens: &Vec<Token>, filename: &str, tabs: u8) -> String {
 
         [
             Keyword(Print),
-            Identifier(list),
-            SpecialCharacter(Dot),
-            Literal(index),
-        ] => {
-            format!("_print_item(&{list}, {index});")
-        }
-        [
-            Keyword(Print),
-            Identifier(list),
-            SpecialCharacter(Dot),
-            Identifier(index),
-        ] => {
-            format!("_print_item(&{list}, (int){index}.value);")
-        }
-        [Keyword(Print), Identifier(var)] => format!("_print(&{var});"),
-        [Keyword(Print), Literal(msg)] => format!("printf(\"{msg}\");"),
-        [Keyword(Print), Keyword(True)] => "printf(\"true\");".to_string(),
-        [Keyword(Print), Keyword(False)] => "printf(\"false\");".to_string(),
-
-        [
-            Keyword(Println),
-            Identifier(list),
-            SpecialCharacter(Dot),
-            Literal(index),
-        ] => {
-            format!("_println_item(&{list}, {index});")
-        }
-        [
-            Keyword(Println),
-            Identifier(list),
-            SpecialCharacter(Dot),
-            Identifier(index),
-        ] => {
-            format!("_print_item(&{list}, (int){index}.value);")
-        }
-        [Keyword(Println), Identifier(var)] => format!("_println(&{var});"),
-        [Keyword(Println), Literal(text)] => format!("printf(\"{text}\\n\");"),
-        [Keyword(Println), Keyword(True)] => "printf(\"true\\n\");".to_string(),
-        [Keyword(Println), Keyword(False)] => "printf(\"false\\n\");".to_string(),
-        [Keyword(Println)] => "printf(\"\\n\");".to_string(),
+            SpecialCharacter(OpenParenthesis),
+            args @ ..,
+            SpecialCharacter(CloseParenthesis),
+        ] => generate_print(args),
 
         [
             Identifier(var),
             SpecialCharacter(Plus),
             SpecialCharacter(Plus),
-        ] => {
-            format!("++{var}.value;")
-        }
+        ] => format!("++{var}.value;"),
+
         [
             Identifier(var),
             SpecialCharacter(Minus),
             SpecialCharacter(Minus),
-        ] => {
-            format!("--{var}.value;")
-        }
+        ] => format!("--{var}.value;"),
 
         [Keyword(var_type), Identifier(var)]
             if matches!(var_type, List | Int | Float | Bool | Char) =>
         {
             generate_declaration(var_type, var)
         }
+
         [
             Keyword(var_type),
             Identifier(var),
@@ -283,6 +245,128 @@ fn generate_append_literal(list: &str, value: &str) -> String {
     format!("_append_literal(&{list}, {type_name}, {value});")
 }
 
+fn generate_print(args: &[Token]) -> String {
+    let arguments = split_arguments(args);
+
+    if arguments.is_empty() {
+        return "printf(\"\\n\");".to_string();
+    }
+
+    let format_arg = &arguments[0];
+    let expr_args = &arguments[1..];
+
+    if is_string_literal(format_arg) {
+        let format_str = extract_string_content(format_arg);
+        let (c_format, c_args) = process_format_string(format_str, expr_args);
+        format!("printf(\"{}\"{});", c_format, c_args)
+    } else {
+        panic!("First argument of print must be a string literal");
+    }
+}
+
+fn is_string_literal(tokens: &[Token]) -> bool {
+    tokens.len() == 1 && matches!(tokens[0], Literal(ref s) if !s.parse::<f64>().is_ok())
+}
+
+fn extract_string_content(tokens: &[Token]) -> &str {
+    if let [Literal(s)] = tokens {
+        s
+    } else {
+        panic!("Expected string literal");
+    }
+}
+
+fn split_arguments(args: &[Token]) -> Vec<Vec<Token>> {
+    let mut arguments = Vec::new();
+    let mut current_arg = Vec::new();
+    let mut paren_depth = 0;
+
+    for token in args {
+        match token {
+            SpecialCharacter(Comma) if paren_depth == 0 => {
+                if !current_arg.is_empty() {
+                    arguments.push(current_arg.clone());
+                    current_arg.clear();
+                }
+            }
+            SpecialCharacter(OpenParenthesis) => {
+                paren_depth += 1;
+                current_arg.push(token.clone());
+            }
+            SpecialCharacter(CloseParenthesis) => {
+                paren_depth -= 1;
+                current_arg.push(token.clone());
+            }
+            _ => current_arg.push(token.clone()),
+        }
+    }
+
+    if !current_arg.is_empty() {
+        arguments.push(current_arg);
+    }
+
+    arguments
+}
+
+fn process_format_string(format_str: &str, args: &[Vec<Token>]) -> (String, String) {
+    let mut c_format = String::new();
+    let mut c_args = Vec::new();
+    let mut arg_index = 0;
+
+    let mut chars = format_str.chars().peekable();
+
+    while let Some(ch) = chars.next() {
+        if ch == '{' {
+            let mut type_spec = String::new();
+            while let Some(&next_ch) = chars.peek() {
+                if next_ch == '}' {
+                    chars.next();
+                    break;
+                }
+                type_spec.push(chars.next().unwrap());
+            }
+
+            if arg_index < args.len() {
+                let (c_spec, c_arg) = convert_type_spec(&type_spec, &args[arg_index]);
+                c_format.push_str(&c_spec);
+                c_args.push(c_arg);
+                arg_index += 1;
+            } else {
+                panic!("Not enough arguments for format string");
+            }
+        } else {
+            c_format.push(ch);
+        }
+    }
+
+    c_format.push_str("\\n");
+
+    let args_str = if c_args.is_empty() {
+        String::new()
+    } else {
+        format!(", {}", c_args.join(", "))
+    };
+
+    (c_format, args_str)
+}
+
+fn convert_type_spec(type_spec: &str, arg_tokens: &[Token]) -> (String, String) {
+    let expr = generate_expression(arg_tokens);
+
+    match type_spec {
+        "int" => ("%d".to_string(), format!("(int)({})", expr)),
+        "float" => ("%.15g".to_string(), format!("(double)({})", expr)),
+        "char" => ("%c".to_string(), format!("(char)({})", expr)),
+        "bool" => (
+            "%s".to_string(),
+            format!("({}) ? \"true\" : \"false\"", expr),
+        ),
+        "hex" => ("%x".to_string(), format!("(unsigned int)({})", expr)),
+        "octal" => ("%o".to_string(), format!("(unsigned int)({})", expr)),
+        _ => panic!("Unknown format specifier: {}", type_spec),
+    }
+}
+
 fn generate_expression(expression: &[Token]) -> String {
     if expression.is_empty() {
         panic!("Expression requires at least one token");
@@ -371,8 +455,8 @@ fn generate_expression(expression: &[Token]) -> String {
                     expression_str.push_str(&format!("{space_before}!"));
                 }
             }
-            Keyword(True) => expression_str.push_str("true"),
-            Keyword(False) => expression_str.push_str("false"),
+            Keyword(True) => expression_str.push_str("1"),
+            Keyword(False) => expression_str.push_str("0"),
             Keyword(And) => expression_str.push_str(" && "),
             Keyword(Or) => expression_str.push_str(" || "),
             _ => panic!("Unexpected token in expression: {:?}", token),

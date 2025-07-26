@@ -40,10 +40,6 @@ double _convert(Type type, double value);
 void _assign(Var *var, double value);
 void _append_var(List *list, const Var *var);
 void _append_literal(List *list, Type type, double value);
-void _print(const Var *var);
-void _println(const Var *var);
-void _print_item(const List *list, size_t index);
-void _println_item(const List *list, size_t index);
 List _create_list();
 void _free_memory();
 
@@ -116,52 +112,6 @@ void _append_literal(List *list, Type type, double value) {
     var.type = type;
     var.value = _convert(type, value);
     _append_var(list, &var);
-}
-
-void _print(const Var *var) {
-    switch (var->type) {
-        case TYPE_INT:
-            printf("%d", (int)var->value);
-            break;
-        case TYPE_FLOAT:
-            printf("%lf", var->value);
-            break;
-        case TYPE_BOOL:
-            printf("%s", var->value == 0.0 ? "false" : "true");
-            break;
-        case TYPE_CHAR:
-            if (_is_char(var->value)) printf("%c", (char)var->value);
-            break;
-    }
-}
-
-void _println(const Var *var) {
-    switch (var->type) {
-        case TYPE_INT:
-            printf("%d\n", (int)var->value);
-            break;
-        case TYPE_FLOAT:
-            printf("%lf\n", var->value);
-            break;
-        case TYPE_BOOL:
-            printf("%s\n", var->value == 0.0 ? "false" : "true");
-            break;
-        case TYPE_CHAR:
-            if (_is_char(var->value)) printf("%c\n", (char)var->value);
-            break;
-    }
-}
-
-void _print_item(const List *list, size_t index) {
-    if (index < list->length) {
-        _print(&list->data[index]);
-    }
-}
-
-void _println_item(const List *list, size_t index) {
-    if (index < list->length) {
-        _println(&list->data[index]);
-    }
 }
 
 List _create_list() {

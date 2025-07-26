@@ -54,6 +54,7 @@ fn generate_c_file(filename: &str, reader: &mut Reader, writer: &mut Writer) {
     write_includes(writer);
 
     let mut after_imports = false;
+    let mut last_tabs = 0;
     let mut c_code;
     let mut h_code;
     let mut header_writer = if filename == "main.ly" {
@@ -61,7 +62,6 @@ fn generate_c_file(filename: &str, reader: &mut Reader, writer: &mut Writer) {
     } else {
         Some(get_header_writer(filename))
     };
-    let mut last_tabs = 0;
 
     write_header_guard(filename, &mut header_writer);
 
@@ -112,7 +112,7 @@ fn get_header_writer(filename: &str) -> Writer {
 fn write_includes(writer: &mut Writer) {
     writeln!(
         writer,
-        "#include <stdio.h>\n#include <stdlib.h>\n#include <stdbool.h>\n#include \"std.h\"\n"
+        "#include <stdio.h>\n#include <stdlib.h>\n#include \"std.h\"\n"
     )
     .expect("Failed to write includes");
 }
