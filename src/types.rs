@@ -25,6 +25,7 @@ pub enum Keyword {
     Call,
     Import,
     Export,
+    Const,
     If,
     Else,
     While,

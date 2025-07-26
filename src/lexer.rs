@@ -105,6 +105,7 @@ fn get_keyword(word: &str) -> Option<crate::types::Keyword> {
         "call" => Some(Call),
         "import" => Some(Import),
         "export" => Some(Export),
+        "const" => Some(Const),
         "if" => Some(If),
         "else" => Some(Else),
         "while" => Some(While),

@@ -79,6 +79,7 @@ double _convert(Type type, double value) {
             if (_is_char(value)) return value;
             return 0.0;
     }
+    return 0.0;
 }
 
 void _assign(Var *var, double value) {

@@ -128,6 +128,19 @@ fn match_c_code(tokens: &Vec<Token>, filename: &str, tabs: u8) -> String {
         }
 
         [
+            Keyword(Const),
+            Keyword(var_type),
+            Identifier(var),
+            SpecialCharacter(Assignment),
+            expression @ ..,
+        ] if matches!(var_type, Int | Float | Bool | Char) => {
+            format!(
+                "const {}",
+                generate_initialization(var_type, var, expression)
+            )
+        }
+
+        [
             Identifier(var),
             SpecialCharacter(Assignment),
             Keyword(var_type),

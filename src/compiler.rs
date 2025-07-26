@@ -165,6 +165,7 @@ fn create_executable(filenames: &Vec<String>, executable_name: &str, release: bo
 
     let mut cmd = std::process::Command::new("gcc");
     cmd.arg("-Ibuild/include");
+    cmd.args(&["-Werror", "-Wall", "-Wextra", "-pedantic"]);
     if release {
         cmd.args([
             "-O3",
@@ -177,7 +178,7 @@ fn create_executable(filenames: &Vec<String>, executable_name: &str, release: bo
     cmd.args(&c_files)
         .arg("build/src/std.c")
         .arg("-o")
-        .arg(format!("build/{}", executable_name));
+        .arg(format!("build/{executable_name}"));
 
     let status = cmd.status().expect("Failed to run gcc");
 
