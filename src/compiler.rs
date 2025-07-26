@@ -67,7 +67,12 @@ fn generate_c_file(filename: &str, reader: &mut Reader, writer: &mut Writer) {
 
     for line in reader.lines() {
         let line = line.expect("Failed to read line from input file");
-        let (tokens, tabs) = crate::lexer::get_tokens(&line);
+        let (tokens, mut tabs) = crate::lexer::get_tokens(&line);
+
+        if tokens.is_empty() {
+            tabs = last_tabs;
+        }
+
         (c_code, h_code, after_imports) =
             crate::generator::generate(&tokens, filename, after_imports, tabs, last_tabs);
 
