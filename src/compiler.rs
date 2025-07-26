@@ -51,7 +51,7 @@ fn get_writers(filenames: &Vec<String>) -> Vec<Writer> {
 }
 
 fn generate_c_file(filename: &str, reader: &mut Reader, writer: &mut Writer) {
-    write_includes(writer);
+    write_includes(filename, writer);
 
     let mut after_imports = false;
     let mut last_tabs = 0;
@@ -99,9 +99,10 @@ fn generate_c_file(filename: &str, reader: &mut Reader, writer: &mut Writer) {
         + "\n";
 
     write!(writer, "{scope}").expect("Failed to write scope end");
-
-    write_ending(filename, writer);
     write_header_ending(&mut header_writer);
+    if filename == "main.ly" {
+        write_ending(writer);
+    }
 }
 
 fn get_header_writer(filename: &str) -> Writer {
@@ -114,10 +115,11 @@ fn get_header_writer(filename: &str) -> Writer {
     std::io::BufWriter::new(file)
 }
 
-fn write_includes(writer: &mut Writer) {
+fn write_includes(filename: &str, writer: &mut Writer) {
+    let ending = if filename == "main.ly" { "" } else { "\n" };
     writeln!(
         writer,
-        "#include <stdio.h>\n#include <stdlib.h>\n#include \"std.h\"\n"
+        "#include <stdio.h>\n#include <stdlib.h>\n#include \"std.h\"{ending}"
     )
     .expect("Failed to write includes");
 }
@@ -130,13 +132,9 @@ fn write_header_guard(filename: &str, header_writer: &mut Option<Writer>) {
     }
 }
 
-fn write_ending(filename: &str, writer: &mut Writer) {
-    if filename == "main.ly" {
-        write!(writer, "_free_memory();\nreturn EXIT_SUCCESS;\n}}")
-            .expect("Failed to write main function end");
-    } else {
-        write!(writer, "}}").expect("Failed to write function end");
-    }
+fn write_ending(writer: &mut Writer) {
+    write!(writer, "\t_free_memory();\n\treturn EXIT_SUCCESS;\n}}")
+        .expect("Failed to write main function end");
 }
 
 fn write_header_ending(header_writer: &mut Option<Writer>) {

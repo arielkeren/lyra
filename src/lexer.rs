@@ -82,7 +82,6 @@ fn is_special_character(ch: char) -> bool {
 fn get_special_character(ch: char) -> Option<crate::types::SpecialCharacter> {
     match ch {
         '=' => Some(Assignment),
-        ':' => Some(Colon),
         '.' => Some(Dot),
         ',' => Some(Comma),
         '!' => Some(ExclamationMark),
@@ -102,7 +101,7 @@ fn get_special_character(ch: char) -> Option<crate::types::SpecialCharacter> {
 fn get_keyword(word: &str) -> Option<crate::types::Keyword> {
     match word {
         "print" => Some(Print),
-        "call" => Some(Call),
+        "return" => Some(Return),
         "import" => Some(Import),
         "export" => Some(Export),
         "const" => Some(Const),

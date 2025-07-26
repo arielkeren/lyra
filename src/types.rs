@@ -4,7 +4,6 @@ pub type Writer = std::io::BufWriter<std::fs::File>;
 #[derive(Debug, PartialEq, Clone)]
 pub enum SpecialCharacter {
     Assignment,
-    Colon,
     Dot,
     Comma,
     ExclamationMark,
@@ -22,7 +21,7 @@ pub enum SpecialCharacter {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Keyword {
     Print,
-    Call,
+    Return,
     Import,
     Export,
     Const,

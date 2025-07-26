@@ -15,6 +15,9 @@ pub fn generate(
         (0..last_tabs - tabs)
             .map(|i| {
                 let brace_tabs = last_tabs - 1 - i;
+                if filename != "main.ly" && brace_tabs == 0 {
+                    return format!("{}}}\n", "\t".repeat(brace_tabs as usize));
+                }
                 format!("{}}}", "\t".repeat(brace_tabs as usize))
             })
             .collect::<Vec<_>>()
@@ -29,7 +32,7 @@ pub fn generate(
             if filename == "main.ly" {
                 return (
                     format!(
-                        "int main() {{\n{}{}",
+                        "\nint main() {{\n{}{}",
                         scope,
                         match_c_code(tokens, filename, tabs)
                     ),
@@ -40,12 +43,6 @@ pub fn generate(
 
             return (
                 format!("{}{}", scope, match_c_code(tokens, filename, tabs)),
-                match_h_code(tokens, filename),
-                true,
-            );
-        } else if tokens.contains(&SpecialCharacter(Colon)) {
-            return (
-                format!("}}\n\n{}{}", scope, match_c_code(tokens, filename, tabs)),
                 match_h_code(tokens, filename),
                 true,
             );
@@ -63,8 +60,8 @@ pub fn generate(
     )
 }
 
-fn match_c_code(tokens: &Vec<Token>, filename: &str, tabs: u8) -> String {
-    let filename = filename.trim_end_matches(".ly");
+fn match_c_code(tokens: &Vec<Token>, mut filename: &str, tabs: u8) -> String {
+    filename = filename.trim_end_matches(".ly");
 
     let code = match tokens.as_slice() {
         [] => "".to_string(),
@@ -76,22 +73,44 @@ fn match_c_code(tokens: &Vec<Token>, filename: &str, tabs: u8) -> String {
             format!("#include \"{}.h\"\n", file.trim_end_matches(".ly"))
         }
 
-        [Identifier(function), SpecialCharacter(Colon)] => {
-            format!("void _{filename}_private_{function}() {{")
+        [Keyword(Return), expression @ ..] if filename != "main" => {
+            format!("return {};", generate_expression(expression))
         }
+
+        [
+            Identifier(function),
+            SpecialCharacter(OpenParenthesis),
+            params @ ..,
+            SpecialCharacter(CloseParenthesis),
+        ] if filename != "main" => {
+            let (param_str, body_str) = generate_function(params);
+            format!("double _{filename}_private_{function}({param_str}) {{\n{body_str}")
+        }
+
         [
             Keyword(Export),
             Identifier(function),
-            SpecialCharacter(Colon),
-        ] => format!("void _{filename}_public_{function}() {{"),
+            SpecialCharacter(OpenParenthesis),
+            params @ ..,
+            SpecialCharacter(CloseParenthesis),
+        ] if filename != "main" => {
+            let (param_str, body_str) = generate_function(params);
+            format!("double _{filename}_public_{function}({param_str}) {{\n{body_str}")
+        }
 
-        [Keyword(Call), Identifier(function)] => format!("_{filename}_private_{function}();"),
         [
-            Keyword(Call),
             Identifier(file),
             SpecialCharacter(Dot),
             Identifier(function),
-        ] => format!("_{}_public_{function}();", file.trim_end_matches(".ly")),
+            SpecialCharacter(OpenParenthesis),
+            args @ ..,
+            SpecialCharacter(CloseParenthesis),
+        ] => {
+            format!(
+                "_{file}_public_{function}({});",
+                generate_function_args(args)
+            )
+        }
 
         [
             Keyword(Print),
@@ -182,31 +201,48 @@ fn match_c_code(tokens: &Vec<Token>, filename: &str, tabs: u8) -> String {
         }
     };
 
-    add_tabs_after_newlines(&code, tabs)
+    add_tabs_after_newlines(&code, tabs, filename)
 }
 
-fn match_h_code(tokens: &Vec<Token>, filename: &str) -> String {
-    let filename = filename.trim_end_matches(".ly");
+fn match_h_code(tokens: &Vec<Token>, mut filename: &str) -> String {
+    filename = filename.trim_end_matches(".ly");
 
     match tokens.as_slice() {
-        [Identifier(function), SpecialCharacter(Colon)] => {
-            format!("void _{filename}_private_{function}();")
-        }
+        [
+            Identifier(function),
+            SpecialCharacter(OpenParenthesis),
+            params @ ..,
+            SpecialCharacter(CloseParenthesis),
+        ] => format!(
+            "double _{filename}_private_{function}({});",
+            generate_function(params).0
+        ),
 
         [
             Keyword(Export),
             Identifier(function),
-            SpecialCharacter(Colon),
-        ] => format!("void _{filename}_public_{function}();"),
+            SpecialCharacter(OpenParenthesis),
+            params @ ..,
+            SpecialCharacter(CloseParenthesis),
+        ] => format!(
+            "double _{filename}_public_{function}({});",
+            generate_function(params).0
+        ),
 
         _ => "".to_string(),
     }
 }
 
-fn add_tabs_after_newlines(code: &str, tabs: u8) -> String {
+fn add_tabs_after_newlines(code: &str, tabs: u8, filename: &str) -> String {
     let tab_str = "\t".repeat(tabs as usize);
     code.lines()
-        .map(|line| format!("{}{}", tab_str, line))
+        .map(|line| {
+            if filename == "main" && !line.contains("#include") {
+                format!("\t{tab_str}{line}")
+            } else {
+                format!("{tab_str}{line}")
+            }
+        })
         .collect::<Vec<_>>()
         .join("\n")
 }
@@ -367,17 +403,58 @@ fn convert_type_spec(type_spec: &str, arg_tokens: &[Token]) -> (String, String) 
     let expr = generate_expression(arg_tokens);
 
     match type_spec {
-        "int" => ("%d".to_string(), format!("(int)({})", expr)),
-        "float" => ("%.15g".to_string(), format!("(double)({})", expr)),
-        "char" => ("%c".to_string(), format!("(char)({})", expr)),
-        "bool" => (
-            "%s".to_string(),
-            format!("({}) ? \"true\" : \"false\"", expr),
-        ),
-        "hex" => ("%x".to_string(), format!("(unsigned int)({})", expr)),
-        "octal" => ("%o".to_string(), format!("(unsigned int)({})", expr)),
-        _ => panic!("Unknown format specifier: {}", type_spec),
+        "int" => ("%d".to_string(), format!("(int)({expr})")),
+        "float" => ("%.15g".to_string(), format!("(double)({expr})")),
+        "char" => ("%c".to_string(), format!("(char)({expr})")),
+        "bool" => ("%s".to_string(), format!("({expr}) ? \"true\" : \"false\"")),
+        "hex" => ("%x".to_string(), format!("(unsigned int)({expr})")),
+        "octal" => ("%o".to_string(), format!("(unsigned int)({expr})")),
+        _ => panic!("Unknown format specifier: {type_spec}"),
     }
+}
+
+fn generate_function(params: &[Token]) -> (String, String) {
+    let parameters = split_arguments(params);
+    if parameters.is_empty() {
+        return ("void".to_string(), "".to_string());
+    }
+
+    let mut body_str = String::new();
+    let mut param_str = String::new();
+    for param in &parameters {
+        if param.len() != 2
+            || !matches!(param[0], Keyword(Int | Float | Bool | Char))
+            || !matches!(param[1], Identifier(_))
+        {
+            panic!(
+                "Function parameters must be in the form: <type_name> <variable_name>, found: {:?}",
+                param
+            );
+        }
+
+        if let Keyword(keyword) = &param[0] {
+            if let Identifier(var_name) = &param[1] {
+                param_str.push_str(&format!("double _{var_name}, "));
+                body_str.push_str(&format!(
+                    "\tVar {var_name} = {{{}, _{var_name}}};\n",
+                    keyword_to_type(keyword)
+                ));
+            }
+        }
+    }
+
+    param_str.pop();
+    param_str.pop();
+
+    (param_str, body_str)
+}
+
+fn generate_function_args(args: &[Token]) -> String {
+    split_arguments(args)
+        .iter()
+        .map(|arg| generate_expression(arg))
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 fn generate_expression(expression: &[Token]) -> String {
@@ -390,25 +467,72 @@ fn generate_expression(expression: &[Token]) -> String {
     let mut tokens = expression.iter().peekable();
     while let Some(token) = tokens.next() {
         match token {
-            Identifier(var) => {
+            Identifier(id) => {
                 if tokens.peek() == Some(&&SpecialCharacter(Modulo)) {
                     tokens.next();
                     if let Some(next_token) = tokens.next() {
                         if let Literal(next_value) = next_token {
                             if next_value.parse::<f64>().is_ok() {
-                                expression_str
-                                    .push_str(&format!("_mod({var}.value, {next_value})"));
+                                expression_str.push_str(&format!("_mod({id}.value, {next_value})"));
                             } else {
                                 expression_str
-                                    .push_str(&format!("_mod({var}.value, '{next_value}')"));
+                                    .push_str(&format!("_mod({id}.value, '{next_value}')"));
                             }
                         } else if let Identifier(next_var) = next_token {
-                            expression_str
-                                .push_str(&format!("_mod({var}.value, {next_var}.value)"));
+                            expression_str.push_str(&format!("_mod({id}.value, {next_var}.value)"));
                         }
                     }
+                } else if tokens.peek() == Some(&&SpecialCharacter(Dot)) {
+                    tokens.next();
+                    if let Some(next_token) = tokens.next() {
+                        if let Identifier(function) = next_token {
+                            let mut function_args = Vec::new();
+
+                            if tokens.peek() != Some(&&SpecialCharacter(OpenParenthesis)) {
+                                panic!("Expected opening parenthesis after function name");
+                            }
+                            tokens.next();
+
+                            let mut paren_depth = 1;
+                            while let Some(token) = tokens.peek() {
+                                match token {
+                                    SpecialCharacter(OpenParenthesis) => {
+                                        paren_depth += 1;
+                                        function_args.push((*tokens.next().unwrap()).clone());
+                                    }
+                                    SpecialCharacter(CloseParenthesis) => {
+                                        paren_depth -= 1;
+                                        if paren_depth == 0 {
+                                            tokens.next();
+                                            break;
+                                        } else {
+                                            function_args.push((*tokens.next().unwrap()).clone());
+                                        }
+                                    }
+                                    _ => {
+                                        function_args.push((*tokens.next().unwrap()).clone());
+                                    }
+                                }
+                            }
+
+                            if paren_depth > 0 {
+                                panic!(
+                                    "Missing closing parenthesis for function call: {id}.{function}"
+                                );
+                            }
+
+                            expression_str.push_str(&format!(
+                                "_{id}_public_{function}({})",
+                                generate_function_args(&function_args)
+                            ));
+                        } else {
+                            panic!("Expected function after dot, but found something else");
+                        }
+                    } else {
+                        panic!("Expected function after dot, but found none");
+                    }
                 } else {
-                    expression_str.push_str(&format!("{var}.value"));
+                    expression_str.push_str(&format!("{id}.value"));
                 }
             }
             Literal(value) => {
