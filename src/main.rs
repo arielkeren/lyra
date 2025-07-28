@@ -8,11 +8,9 @@ mod types;
 
 fn main() {
     let (filenames, args) = input::get_input();
+    extra::delete_build();
 
     match args.command.as_str() {
-        "clean" => {
-            extra::delete_build();
-        }
         "build" => {
             compiler::compile(&filenames, &args.executable_name, args.release);
         }
@@ -20,6 +18,7 @@ fn main() {
             compiler::compile(&filenames, &args.executable_name, args.release);
             extra::run_executable(&args.executable_name);
         }
+        "clean" => {}
         _ => unreachable!(),
     }
 }
