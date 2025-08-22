@@ -32,15 +32,15 @@ typedef struct {
 typedef struct {
     size_t length;
     size_t capacity;
-    Var *data;
+    Type type;
+    double *data;
 } List;
 
 double _mod(double a, double b);
 double _convert(Type type, double value);
 void _assign(Var *var, double value);
-void _append_var(List *list, const Var *var);
-void _append_literal(List *list, Type type, double value);
-List _create_list();
+void _append(List *list, double value);
+List _create_list(Type type);
 void _free_memory();
 
 #endif"#;
@@ -51,7 +51,7 @@ const STD_C: &str = r#"#include "std.h"
 #include <stdlib.h>
 
 #define MAX_LISTS 1000
-static Var *lists_to_free[MAX_LISTS];
+static double *lists_to_free[MAX_LISTS];
 static size_t list_count = 0;
 
 static unsigned char _is_char(double value) {
@@ -87,36 +87,28 @@ void _assign(Var *var, double value) {
     var->value = _convert(var->type, value);
 }
 
-void _append_var(List *list, const Var *var) {
-    Var *new_data;
+void _append(List *list, double value) {
+    double *new_data;
     size_t i;
 
     if (list->length >= list->capacity) {
         list->capacity *= 2;
-        new_data = realloc(list->data, sizeof(Var) * list->capacity);
+        new_data = realloc(list->data, sizeof(double) * list->capacity);
 
-        if (new_data != list->data) {
-            for (i = 0; i < list_count; i++) {
+        if (new_data != list->data)
+            for (i = 0; i < list_count; i++)
                 if (lists_to_free[i] == list->data) {
                     lists_to_free[i] = new_data;
                     break;
                 }
-            }
-        }
 
         list->data = new_data;
     }
-    list->data[list->length++] = *var;
+
+    list->data[list->length++] = value;
 }
 
-void _append_literal(List *list, Type type, double value) {
-    Var var;
-    var.type = type;
-    var.value = _convert(type, value);
-    _append_var(list, &var);
-}
-
-List _create_list() {
+List _create_list(Type type) {
     List list;
     if (list_count >= MAX_LISTS) {
         fprintf(stderr, "Error: Maximum number of lists exceeded.\n");
@@ -125,7 +117,8 @@ List _create_list() {
 
     list.length = 0;
     list.capacity = 8;
-    list.data = malloc(sizeof(Var) * list.capacity);
+    list.data = malloc(sizeof(double) * list.capacity);
+    list.type = type;
 
     lists_to_free[list_count++] = list.data;
     return list;

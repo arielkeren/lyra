@@ -14,7 +14,7 @@ pub fn generate(
     let scope = if tabs < last_tabs {
         (0..last_tabs - tabs)
             .map(|i| {
-                let brace_tabs = last_tabs - 1 - i;
+                let brace_tabs = last_tabs - i - 1;
                 if filename != "main.ly" && brace_tabs == 0 {
                     return format!("{}}}\n", "\t".repeat(brace_tabs as usize));
                 }
@@ -113,6 +113,27 @@ fn match_c_code(tokens: &Vec<Token>, mut filename: &str, tabs: u8) -> String {
         }
 
         [
+            Keyword(list_type),
+            SpecialCharacter(OpenBracket),
+            SpecialCharacter(CloseBracket),
+            Identifier(list_name),
+        ] => format!(
+            "List {list_name} = _create_list({});",
+            keyword_to_type(list_type)
+        ),
+
+        [
+            Keyword(list_type),
+            SpecialCharacter(OpenBracket),
+            SpecialCharacter(CloseBracket),
+            Identifier(list_name),
+            SpecialCharacter(Assignment),
+            SpecialCharacter(OpenBracket),
+            elements @ ..,
+            SpecialCharacter(CloseBracket),
+        ] => generate_list_initialization(list_type, list_name, elements),
+
+        [
             Keyword(Print),
             SpecialCharacter(OpenParenthesis),
             args @ ..,
@@ -131,10 +152,8 @@ fn match_c_code(tokens: &Vec<Token>, mut filename: &str, tabs: u8) -> String {
             SpecialCharacter(Minus),
         ] => format!("--{var}.value;"),
 
-        [Keyword(var_type), Identifier(var)]
-            if matches!(var_type, List | Int | Float | Bool | Char) =>
-        {
-            generate_declaration(var_type, var)
+        [Keyword(var_type), Identifier(var)] if matches!(var_type, Int | Float | Bool | Char) => {
+            format!("Var {var} = {{ {}, 0.0 }};", keyword_to_type(var_type))
         }
 
         [
@@ -162,9 +181,12 @@ fn match_c_code(tokens: &Vec<Token>, mut filename: &str, tabs: u8) -> String {
         [
             Identifier(var),
             SpecialCharacter(Assignment),
-            Keyword(var_type),
-        ] if matches!(var_type, Int | Float | Bool | Char) => {
-            generate_variable_type_change(var, var_type)
+            Keyword(new_type),
+        ] if matches!(new_type, Int | Float | Bool | Char) => {
+            format!(
+                "{var}.type = {};\n_assign(&{var}, {var}.value);",
+                keyword_to_type(new_type)
+            )
         }
 
         [
@@ -172,19 +194,6 @@ fn match_c_code(tokens: &Vec<Token>, mut filename: &str, tabs: u8) -> String {
             SpecialCharacter(Assignment),
             expression @ ..,
         ] => format!("_assign(&{var}, {});", generate_expression(expression)),
-
-        [Identifier(list), SpecialCharacter(Plus), Identifier(var)] => {
-            format!("_append_var(&{list}, &{var});")
-        }
-        [Identifier(list), SpecialCharacter(Plus), Literal(value)] => {
-            generate_append_literal(list, value)
-        }
-        [Identifier(list), SpecialCharacter(Plus), Keyword(True)] => {
-            format!("_append_literal(&{list}, TYPE_BOOL, 1.0);")
-        }
-        [Identifier(list), SpecialCharacter(Plus), Keyword(False)] => {
-            format!("_append_literal(&{list}, TYPE_BOOL, 0.0);")
-        }
 
         [Keyword(If), condition @ ..] => format!("if ({}) {{", generate_expression(condition)),
         [Keyword(Else)] => "else {".to_string(),
@@ -194,6 +203,12 @@ fn match_c_code(tokens: &Vec<Token>, mut filename: &str, tabs: u8) -> String {
 
         [Keyword(While), condition @ ..] => {
             format!("while ({}) {{", generate_expression(condition))
+        }
+
+        [Keyword(For), Identifier(var), Keyword(In), Identifier(list)] => {
+            format!(
+                "for (size_t _index = 0; _index < {list}.length; ++_index) {{\n\tVar {var};\n\t{var}.type = {list}.type;\n\t{var}.value = {list}.data[_index];"
+            )
         }
 
         _ => {
@@ -257,15 +272,6 @@ fn keyword_to_type(keyword: &Keyword) -> String {
     }
 }
 
-fn generate_declaration(var_type: &Keyword, var: &str) -> String {
-    if var_type == &List {
-        return format!("List {var} = _create_list();");
-    }
-
-    let type_name = keyword_to_type(var_type);
-    format!("Var {var} = {{ {type_name}, 0.0 }};")
-}
-
 fn generate_initialization(var_type: &Keyword, var: &str, expression: &[Token]) -> String {
     if expression.is_empty() {
         panic!("Initialization cannot be empty");
@@ -278,20 +284,24 @@ fn generate_initialization(var_type: &Keyword, var: &str, expression: &[Token]) 
     )
 }
 
-fn generate_variable_type_change(var: &str, var_type: &Keyword) -> String {
-    let type_name = keyword_to_type(var_type);
-    format!("{var}.type = {type_name};\n_assign(&{var}, {var}.value);")
-}
+fn generate_list_initialization(
+    list_type: &Keyword,
+    list_name: &str,
+    elements: &[Token],
+) -> String {
+    let mut initialization_str = format!(
+        "List {list_name} = _create_list({});",
+        keyword_to_type(list_type)
+    );
+    let split_elements = split_arguments(elements);
 
-fn generate_append_literal(list: &str, value: &str) -> String {
-    let type_name = if value.parse::<i64>().is_ok() {
-        "TYPE_INT"
-    } else if value.parse::<f64>().is_ok() {
-        "TYPE_FLOAT"
-    } else {
-        "TYPE_CHAR"
-    };
-    format!("_append_literal(&{list}, {type_name}, {value});")
+    for element in split_elements.iter() {
+        initialization_str.push_str(&format!(
+            "\n_append(&{list_name}, {});",
+            generate_expression(element)
+        ));
+    }
+    initialization_str
 }
 
 fn generate_print(args: &[Token]) -> String {

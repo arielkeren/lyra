@@ -4,3 +4,8 @@ build
 *.c
 *.h
 *.ly
+.env
+next-env.d.ts
+node_modules
+.next
+package-lock.json

@@ -16,6 +16,8 @@ pub enum SpecialCharacter {
     SmallerThan,
     OpenParenthesis,
     CloseParenthesis,
+    OpenBracket,
+    CloseBracket,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -28,9 +30,10 @@ pub enum Keyword {
     If,
     Else,
     While,
+    For,
+    In,
     True,
     False,
-    List,
     Int,
     Float,
     Bool,

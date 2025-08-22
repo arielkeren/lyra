@@ -94,6 +94,8 @@ fn get_special_character(ch: char) -> Option<crate::types::SpecialCharacter> {
         '<' => Some(SmallerThan),
         '(' => Some(OpenParenthesis),
         ')' => Some(CloseParenthesis),
+        '[' => Some(OpenBracket),
+        ']' => Some(CloseBracket),
         _ => None,
     }
 }
@@ -108,9 +110,10 @@ fn get_keyword(word: &str) -> Option<crate::types::Keyword> {
         "if" => Some(If),
         "else" => Some(Else),
         "while" => Some(While),
+        "for" => Some(For),
+        "in" => Some(In),
         "true" => Some(True),
         "false" => Some(False),
-        "list" => Some(List),
         "int" => Some(Int),
         "float" => Some(Float),
         "bool" => Some(Bool),

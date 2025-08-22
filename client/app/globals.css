@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+.animated-bg {
+  background: linear-gradient(
+    45deg,
+    #312e81,
+    #581c87,
+    #1e3a8a,
+    #86198f,
+    #7c3aed,
+    #312e81
+  );
+  background-size: 400% 400%;
+  animation: gradient-x 12s ease-in-out infinite;
+}
+
+@keyframes gradient-x {
+  0% {
+    background-position: 0% 50%;
+  }
+  25% {
+    background-position: 100% 0%;
+  }
+  50% {
+    background-position: 100% 100%;
+  }
+  75% {
+    background-position: 0% 100%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
