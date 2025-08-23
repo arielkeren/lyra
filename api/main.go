@@ -17,6 +17,7 @@ import (
 	userHandlers "github.com/arielkeren/lyra/handlers/users"
 	"github.com/arielkeren/lyra/middleware"
 	"github.com/arielkeren/lyra/routing"
+	"github.com/arielkeren/lyra/utils"
 )
 
 var client *mongo.Client
@@ -48,7 +49,7 @@ func main() {
 		if r.Method == "POST" {
 			authHandlers.Register(w, r, db)
 		} else {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			utils.SendMethodNotAllowed(w)
 		}
 	})
 
@@ -56,7 +57,7 @@ func main() {
 		if r.Method == "POST" {
 			authHandlers.Login(w, r, db)
 		} else {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			utils.SendMethodNotAllowed(w)
 		}
 	})
 
@@ -69,7 +70,7 @@ func main() {
 				packageHandlers.CreatePackage(w, r, db)
 			})(w, r)
 		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			utils.SendMethodNotAllowed(w)
 		}
 	})
 
@@ -87,19 +88,32 @@ func main() {
 					packageHandlers.DeletePackage(w, r, db)
 				})(w, r)
 			default:
-				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+				utils.SendMethodNotAllowed(w)
 			}
 		} else {
-			http.Error(w, "Package name required", http.StatusBadRequest)
+			utils.SendError(w, http.StatusBadRequest, "Package name required")
+		}
+	})
+
+	routing.Route("/users", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "PUT" {
+			middleware.AuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
+				userHandlers.UpdateUser(w, r, db)
+			})(w, r)
+		} else {
+			utils.SendMethodNotAllowed(w)
 		}
 	})
 
 	routing.Route("/users/", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case "GET":
-			userHandlers.GetUser(w, r, db)
-		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		if strings.TrimPrefix(r.URL.Path, "/users/") != "" {
+			if r.Method == "GET" {
+				userHandlers.GetUser(w, r, db)
+			} else {
+				utils.SendMethodNotAllowed(w)
+			}
+		} else {
+			utils.SendError(w, http.StatusBadRequest, "User ID required")
 		}
 	})
 

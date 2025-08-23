@@ -10,12 +10,20 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
+type ContextKey string
+
+const (
+	IDKey       ContextKey = "id"
+	UsernameKey ContextKey = "username"
+	EmailKey    ContextKey = "email"
+)
+
 func GetContext() (context.Context, context.CancelFunc) {
 	return context.WithTimeout(context.Background(), 5*time.Second)
 }
 
 func GetUserID(w http.ResponseWriter, r *http.Request) (bson.ObjectID, bool) {
-	userIDStr, ok := r.Context().Value("id").(string)
+	userIDStr, ok := r.Context().Value(IDKey).(string)
 	if !ok {
 		SendError(w, http.StatusUnauthorized, "User ID not found in context")
 		return bson.ObjectID{}, false
@@ -57,4 +65,8 @@ func SendError(w http.ResponseWriter, statusCode int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	json.NewEncoder(w).Encode(map[string]string{"error": message})
+}
+
+func SendMethodNotAllowed(w http.ResponseWriter) {
+	SendError(w, http.StatusMethodNotAllowed, "Method not allowed")
 }

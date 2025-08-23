@@ -43,7 +43,9 @@ export const put = async (route: string, token: string, body: object) => {
       },
       body: JSON.stringify(body),
     });
-    return res.ok;
+    if (!res.ok) return null;
+
+    return (await res.json()) as unknown;
   } catch {
     return false;
   }

@@ -33,11 +33,9 @@ func UpdatePackage(w http.ResponseWriter, r *http.Request, db *mongo.Database) {
 	ctx, cancel := utils.GetContext()
 	defer cancel()
 
-	collection := db.Collection("packages")
-
 	// Verify ownership
 	var pkg models.Package
-	err := collection.FindOne(ctx, bson.M{"name": packageName}).Decode(&pkg)
+	err := db.Collection("packages").FindOne(ctx, bson.M{"name": packageName}).Decode(&pkg)
 	if err != nil {
 		utils.SendError(w, http.StatusNotFound, "Package not found")
 		return
@@ -70,8 +68,7 @@ func UpdatePackage(w http.ResponseWriter, r *http.Request, db *mongo.Database) {
 
 	updateFields["updated_at"] = time.Now()
 
-	update := bson.M{"$set": updateFields}
-	_, err = collection.UpdateOne(ctx, bson.M{"name": packageName}, update)
+	_, err = db.Collection("packages").UpdateOne(ctx, bson.M{"name": packageName}, bson.M{"$set": updateFields})
 	if err != nil {
 		utils.SendError(w, http.StatusInternalServerError, "Failed to update package")
 		return

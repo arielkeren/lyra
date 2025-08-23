@@ -8,8 +8,6 @@ import (
 	"github.com/arielkeren/lyra/utils"
 )
 
-type contextKey string
-
 func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
@@ -30,9 +28,9 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), contextKey("id"), claims.ID)
-		ctx = context.WithValue(ctx, contextKey("username"), claims.Username)
-		ctx = context.WithValue(ctx, contextKey("email"), claims.Email)
+		ctx := context.WithValue(r.Context(), utils.IDKey, claims.ID)
+		ctx = context.WithValue(ctx, utils.UsernameKey, claims.Username)
+		ctx = context.WithValue(ctx, utils.EmailKey, claims.Email)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})

@@ -7,7 +7,10 @@ const register = async (username: string, email: string, password: string) => {
     email,
     password,
   });
-  return isAuthResponse(data) ? data.token : null;
+  if (!isAuthResponse(data)) return false;
+
+  localStorage.setItem("token", data.token);
+  return true;
 };
 
 export default register;

@@ -19,9 +19,7 @@ const LoginModal = ({ isOpen, onClose }: Props) => {
     e.preventDefault();
     setIsLoading(true);
 
-    const token = await login(email, password);
-    if (token) {
-      localStorage.setItem("token", token);
+    if (await login(email, password)) {
       refreshUser();
       onClose();
     } else setIsError(true);
