@@ -1,9 +1,4 @@
 target
-build
-*.exe
-*.c
-*.h
-*.ly
 .env
 next-env.d.ts
 node_modules

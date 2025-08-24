@@ -23,7 +23,8 @@ fn get_readers(filenames: &Vec<String>) -> Vec<Reader> {
     filenames
         .iter()
         .map(|filename| {
-            let file = std::fs::File::open(filename).expect("Failed to open input file");
+            let file =
+                std::fs::File::open(format!("src/{filename}")).expect("Failed to open input file");
             std::io::BufReader::new(file)
         })
         .collect()

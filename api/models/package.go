@@ -8,7 +8,6 @@ import (
 
 type PackageFile struct {
 	Name    string `json:"name" bson:"name"`
-	Path    string `json:"path" bson:"path"`
 	Content string `json:"content" bson:"content"`
 }
 
