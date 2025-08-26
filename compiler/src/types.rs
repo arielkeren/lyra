@@ -3,41 +3,39 @@ pub type Writer = std::io::BufWriter<std::fs::File>;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum SpecialCharacter {
-    Assignment,
+    Equals,
     Dot,
     Comma,
-    ExclamationMark,
     Plus,
     Minus,
-    Multiply,
-    Divide,
-    Modulo,
+    Asterisk,
+    Slash,
+    Percent,
     LargerThan,
     SmallerThan,
     OpenParenthesis,
     CloseParenthesis,
     OpenBracket,
     CloseBracket,
+    OpenBrace,
+    CloseBrace,
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Keyword {
+    Let,
+    Const,
     Print,
+    Type,
     Return,
     Import,
-    Export,
-    Const,
     If,
     Else,
-    While,
-    For,
+    Loop,
     In,
     True,
     False,
-    Int,
-    Float,
-    Bool,
-    Char,
+    Null,
     Break,
     Continue,
     And,
@@ -46,9 +44,16 @@ pub enum Keyword {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub enum Literal {
+    Str(String),
+    Character(String),
+    Number(String),
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum Token {
     Identifier(String),
     Keyword(Keyword),
     SpecialCharacter(SpecialCharacter),
-    Literal(String),
+    Literal(Literal),
 }

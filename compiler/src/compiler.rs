@@ -32,9 +32,9 @@ fn get_readers(filenames: &Vec<String>) -> Vec<Reader> {
 
 fn get_writers(filenames: &Vec<String>) -> Vec<Writer> {
     std::fs::create_dir_all(std::path::Path::new("build/src"))
-        .expect("Failed to create a directory for the generated C files");
+        .expect("Failed to create a directory for the generated C++ files");
     std::fs::create_dir_all(std::path::Path::new("build/include"))
-        .expect("Failed to create a directory for the generated C files");
+        .expect("Failed to create a directory for the generated C++ files");
 
     filenames
         .iter()
@@ -43,7 +43,7 @@ fn get_writers(filenames: &Vec<String>) -> Vec<Writer> {
                 .file_name()
                 .expect("Invalid filename")
                 .to_string_lossy();
-            let output_filename = format!("build/src/{}", base.replace(".ly", ".c"));
+            let output_filename = format!("build/src/{}", base.replace(".ly", ".cpp"));
             let file =
                 std::fs::File::create(&output_filename).expect("Failed to create output file");
             std::io::BufWriter::new(file)
@@ -111,31 +111,30 @@ fn get_header_writer(filename: &str) -> Writer {
         .file_name()
         .expect("Invalid filename")
         .to_string_lossy();
-    let header_filename = format!("build/include/{}", base.replace(".ly", ".h"));
+    let header_filename = format!("build/include/{}", base.replace(".ly", ".hpp"));
     let file = std::fs::File::create(&header_filename).expect("Failed to create output file");
     std::io::BufWriter::new(file)
 }
 
 fn write_includes(filename: &str, writer: &mut Writer) {
     let ending = if filename == "main.ly" { "" } else { "\n" };
-    writeln!(
-        writer,
-        "#include <stdio.h>\n#include <stdlib.h>\n#include \"std.h\"{ending}"
-    )
-    .expect("Failed to write includes");
+    writeln!(writer, "#include \"std.hpp\"{ending}").expect("Failed to write includes");
 }
 
 fn write_header_guard(filename: &str, header_writer: &mut Option<Writer>) {
     if let Some(h_writer) = header_writer {
-        let guard_name = format!("{}_H", filename.trim_end_matches(".ly").to_uppercase());
-        writeln!(h_writer, "#ifndef {}\n#define {}\n", guard_name, guard_name)
-            .expect("Failed to write header guard");
+        let namespace = format!("{}_HPP", filename.trim_end_matches(".ly"));
+        let guard_name = namespace.to_uppercase();
+        writeln!(
+            h_writer,
+            "#ifndef {guard_name}\n#define {guard_name}\n\nnamespace {namespace}\n",
+        )
+        .expect("Failed to write header guard");
     }
 }
 
 fn write_ending(writer: &mut Writer) {
-    write!(writer, "\t_free_memory();\n\treturn EXIT_SUCCESS;\n}}")
-        .expect("Failed to write main function end");
+    write!(writer, "}}").expect("Failed to write main function end");
 }
 
 fn write_header_ending(header_writer: &mut Option<Writer>) {
@@ -158,11 +157,11 @@ fn create_executable(filenames: &Vec<String>, executable_name: &str, release: bo
                 .file_name()
                 .expect("Invalid filename")
                 .to_string_lossy();
-            format!("build/src/{}", base.replace(".ly", ".c"))
+            format!("build/src/{}", base.replace(".ly", ".cpp"))
         })
         .collect::<Vec<_>>();
 
-    let mut cmd = std::process::Command::new("gcc");
+    let mut cmd = std::process::Command::new("g++");
     cmd.arg("-Ibuild/include");
     cmd.args(&["-Werror", "-Wall", "-Wextra", "-pedantic"]);
     if release {
@@ -175,11 +174,11 @@ fn create_executable(filenames: &Vec<String>, executable_name: &str, release: bo
         ]);
     }
     cmd.args(&c_files)
-        .arg("build/src/std.c")
+        .arg("build/src/std.cpp")
         .arg("-o")
         .arg(format!("build/{executable_name}"));
 
-    let status = cmd.status().expect("Failed to run gcc");
+    let status = cmd.status().expect("Failed to run g++");
 
     if !status.success() {
         panic!("gcc failed to compile");
