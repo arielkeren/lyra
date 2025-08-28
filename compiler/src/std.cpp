@@ -1,9 +1,15 @@
 #include "std.hpp"
 
 #include <cmath>
+#include <cstring>
 #include <sstream>
 
 // Constructors
+Value::Value(const Value& other)
+    : type_(other.type_),
+      numeric_value_(other.numeric_value_),
+      list_value_(other.list_value_) {}
+
 Value::Value(std::nullptr_t) : type_(Type::NONE) {}
 
 Value::Value(int value)
@@ -64,6 +70,8 @@ Value Value::operator-(const Value& other) const {
         return Value(numeric_value_ - other.numeric_value_);
     return Value(static_cast<int>(numeric_value_ - other.numeric_value_));
 }
+
+Value Value::operator-() const { return Value(0) - *this; }
 
 Value Value::operator*(const Value& other) const {
     if (!is_value() || !other.is_value())
@@ -184,22 +192,22 @@ Value Value::operator--(int) {
 }
 
 // Indexing operations
-Value& Value::operator[](size_t index) {
-    if (!is_iterable()) {
-        throw std::runtime_error("Cannot index non-iterable type");
-    }
-    if (index >= list_value_.size()) {
-        throw std::out_of_range("Index out of range");
-    }
-    return list_value_[index];
-}
-
-const Value& Value::operator[](size_t index) const {
+Value& Value::operator[](Value index) {
     if (!is_iterable())
         throw std::runtime_error("Cannot index non-iterable type");
-    if (index >= list_value_.size())
+    if (!index.is_int()) throw std::runtime_error("Index must be an integer");
+    if (index.numeric_value_ >= list_value_.size())
         throw std::out_of_range("Index out of range");
-    return list_value_[index];
+    return list_value_[static_cast<size_t>(index.numeric_value_)];
+}
+
+const Value& Value::operator[](Value index) const {
+    if (!is_iterable())
+        throw std::runtime_error("Cannot index non-iterable type");
+    if (!index.is_int()) throw std::runtime_error("Index must be an integer");
+    if (index.numeric_value_ >= list_value_.size())
+        throw std::out_of_range("Index out of range");
+    return list_value_[static_cast<size_t>(index.numeric_value_)];
 }
 
 // Iterator support
@@ -226,6 +234,8 @@ std::string Value::to_string() const {
             return std::to_string(numeric_value_);
         case Type::BOOL:
             return (numeric_value_ == 0.0 ? "false" : "true");
+        case Type::CHAR:
+            return std::string(1, static_cast<char>(numeric_value_));
         case Type::STRING: {
             std::ostringstream oss;
             for (const Value& char_var : list_value_)
@@ -257,7 +267,7 @@ std::ostream& operator<<(std::ostream& os, const Value& value) {
     return os;
 }
 
-Value type(const Value& value) {
+Value _type(const Value& value) {
     switch (value.type()) {
         case Type::NONE:
             return Value("none");
@@ -275,4 +285,45 @@ Value type(const Value& value) {
             return Value("list");
     }
     return Value("");
+}
+
+Value _len(const Value& value) {
+    if (value.type() == Type::LIST || value.type() == Type::STRING)
+        return Value(static_cast<int>(value.get_list_value().size()));
+    throw std::runtime_error("Cannot get length of non-list type");
+}
+
+Value _null(const Value&) { return Value(nullptr); }
+
+Value _int(const Value& value) {
+    if (value.type() == Type::LIST || value.type() == Type::STRING)
+        throw std::runtime_error("Cannot convert non-value type to int");
+    return Value(static_cast<int>(value.get_numeric_value()));
+}
+
+Value _float(const Value& value) {
+    if (value.type() == Type::LIST || value.type() == Type::STRING)
+        throw std::runtime_error("Cannot convert non-value type to float");
+    return Value(value.get_numeric_value());
+}
+
+Value _bool(const Value& value) { return (bool)value; }
+
+Value _char(const Value& value) {
+    if (value.type() == Type::LIST || value.type() == Type::STRING)
+        throw std::runtime_error("Cannot convert non-value type to char");
+    return Value(static_cast<char>(value.get_numeric_value()));
+}
+
+Value _string(const Value& value) { return Value(value.to_string().c_str()); }
+
+Value _list(const Value& value) {
+    switch (value.type()) {
+        case Type::LIST:
+            return value;
+        case Type::STRING:
+            return Value(value.get_list_value());
+        default:
+            return Value(std::vector<Value>{value});
+    }
 }

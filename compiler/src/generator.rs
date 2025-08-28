@@ -1,16 +1,22 @@
 use crate::types::Keyword::*;
 use crate::types::Literal::*;
+use crate::types::SpecialCharacter;
 use crate::types::SpecialCharacter::*;
 use crate::types::Token;
 use crate::types::Token::*;
 
-pub fn generate(
-    tokens: &Vec<Token>,
-    filename: &str,
-    after_imports: bool,
-    tabs: u8,
-    last_tabs: u8,
-) -> (String, String, bool) {
+pub fn generate_imports(tokens: &[Token]) -> Option<String> {
+    if let [Keyword(Import), Identifier(file)] = tokens {
+        if file == "std" || file == "main" {
+            panic!("Cannot import reserved module name: {}", file);
+        }
+        Some(format!("#include \"{file}.hpp\""))
+    } else {
+        None
+    }
+}
+
+pub fn generate(tokens: &Vec<Token>, filename: &str, tabs: u8, last_tabs: u8) -> (String, String) {
     let scope = if tabs < last_tabs {
         (0..last_tabs - tabs)
             .map(|i| {
@@ -27,36 +33,13 @@ pub fn generate(
         "".to_string()
     };
 
-    if let Some(first) = tokens.first() {
-        if !after_imports && first != &Keyword(Import) {
-            if filename == "main.ly" {
-                return (
-                    format!(
-                        "\nint main() {{\n{}{}",
-                        scope,
-                        match_c_code(tokens, filename, tabs)
-                    ),
-                    "".to_string(),
-                    true,
-                );
-            }
-
-            return (
-                format!("{}{}", scope, match_c_code(tokens, filename, tabs)),
-                match_h_code(tokens),
-                true,
-            );
-        }
-
-        if after_imports && first == &Keyword(Import) {
-            panic!("Import statements should be at the beginning of the file");
-        }
-    }
-
     (
         format!("{}{}", scope, match_c_code(tokens, filename, tabs)),
-        match_h_code(tokens),
-        after_imports,
+        if filename == "main.ly" || tabs > 0 {
+            "".to_string()
+        } else {
+            match_h_code(tokens)
+        },
     )
 }
 
@@ -69,14 +52,10 @@ fn match_c_code(tokens: &Vec<Token>, mut filename: &str, tabs: u8) -> String {
         [Keyword(Break)] => "break;".to_string(),
         [Keyword(Continue)] => "continue;".to_string(),
 
-        [Keyword(Import), Identifier(file)] => {
-            format!("#include \"{file}.hpp\"\n")
-        }
-
         [Keyword(Return)] if filename != "main" => "return Value(nullptr);".to_string(),
 
         [Keyword(Return), expression @ ..] if filename != "main" => {
-            format!("return {};", generate_expression(expression, false))
+            format!("return {};", generate_expression(expression))
         }
 
         [
@@ -84,8 +63,11 @@ fn match_c_code(tokens: &Vec<Token>, mut filename: &str, tabs: u8) -> String {
             SpecialCharacter(OpenParenthesis),
             params @ ..,
             SpecialCharacter(CloseParenthesis),
-        ] if filename != "main" => {
-            format!("Value {function}({}) {{", generate_params(params))
+        ] if filename != "main" && tabs == 0 => {
+            format!(
+                "Value {filename}::{function}({}) {{",
+                generate_params(params)
+            )
         }
 
         [
@@ -96,15 +78,17 @@ fn match_c_code(tokens: &Vec<Token>, mut filename: &str, tabs: u8) -> String {
             args @ ..,
             SpecialCharacter(CloseParenthesis),
         ] => {
-            format!("{file}::{function}({});", generate_expression(args, true))
+            format!("{file}::{function}({});", generate_expression(args))
         }
 
         [
-            Keyword(Print),
+            Identifier(function),
             SpecialCharacter(OpenParenthesis),
             args @ ..,
             SpecialCharacter(CloseParenthesis),
-        ] => format!("print({});", generate_expression(args, true)),
+        ] if function == "print" => {
+            format!("_print({});", generate_expression(args))
+        }
 
         [
             SpecialCharacter(Plus),
@@ -130,7 +114,23 @@ fn match_c_code(tokens: &Vec<Token>, mut filename: &str, tabs: u8) -> String {
             SpecialCharacter(Minus),
         ] => format!("{var}--;"),
 
-        [Keyword(Let), Identifier(var)] => format!("Value {var} = Value(nullptr);"),
+        [Keyword(Let), Identifier(var)] if filename != "main" && tabs == 0 => {
+            format!("Value {filename}::{var}(nullptr);")
+        }
+
+        [Keyword(Let), Identifier(var)] => format!("Value {var}(nullptr);"),
+
+        [
+            Keyword(Let),
+            Identifier(var),
+            SpecialCharacter(Equals),
+            expression @ ..,
+        ] if filename != "main" && tabs == 0 => {
+            format!(
+                "Value {filename}::{var}({});",
+                generate_expression(expression)
+            )
+        }
 
         [
             Keyword(Let),
@@ -138,7 +138,19 @@ fn match_c_code(tokens: &Vec<Token>, mut filename: &str, tabs: u8) -> String {
             SpecialCharacter(Equals),
             expression @ ..,
         ] => {
-            format!("Value {var} = {};", generate_expression(expression, false))
+            format!("Value {var}({});", generate_expression(expression))
+        }
+
+        [
+            Keyword(Const),
+            Identifier(var),
+            SpecialCharacter(Equals),
+            expression @ ..,
+        ] if filename != "main" && tabs == 0 => {
+            format!(
+                "const Value {filename}::{var}({});",
+                generate_expression(expression)
+            )
         }
 
         [
@@ -147,22 +159,70 @@ fn match_c_code(tokens: &Vec<Token>, mut filename: &str, tabs: u8) -> String {
             SpecialCharacter(Equals),
             expression @ ..,
         ] => {
-            format!(
-                "const Value {var} = {};",
-                generate_expression(expression, false)
-            )
+            format!("const Value {var}({});", generate_expression(expression))
         }
 
         [Identifier(var), SpecialCharacter(Equals), expression @ ..] => {
-            format!("{var} = {};", generate_expression(expression, false))
+            format!("{var} = {};", generate_expression(expression))
+        }
+
+        [
+            Identifier(var),
+            SpecialCharacter(operation),
+            SpecialCharacter(Equals),
+            expression @ ..,
+        ] if [Plus, Minus, Asterisk, Slash].contains(operation) => {
+            format!(
+                "{var} {}= {};",
+                to_operation_sign(operation),
+                generate_expression(expression)
+            )
+        }
+
+        [
+            Identifier(file),
+            SpecialCharacter(Dot),
+            Identifier(var),
+            SpecialCharacter(Equals),
+            expression @ ..,
+        ] => {
+            format!("{file}::{var} = {};", generate_expression(expression))
+        }
+
+        [Identifier(var), SpecialCharacter(OpenBracket)] => {
+            panic!("Missing index and assignment in array access for variable: {var}")
+        }
+        [Identifier(var), SpecialCharacter(OpenBracket), rest @ ..] => {
+            // Find the position of CloseBracket and Equals
+            let close_bracket_pos = rest
+                .iter()
+                .position(|t| t == &SpecialCharacter(CloseBracket));
+            let equals_pos = rest.iter().position(|t| t == &SpecialCharacter(Equals));
+            if let (Some(cb), Some(eq)) = (close_bracket_pos, equals_pos) {
+                if eq > cb {
+                    let index = &rest[..cb];
+                    let expression = &rest[eq + 1..];
+                    format!(
+                        "{var}[{}] = {};",
+                        generate_expression(index),
+                        generate_expression(expression)
+                    )
+                } else {
+                    panic!(
+                        "Equals sign must come after closing bracket in array assignment for variable: {var}"
+                    )
+                }
+            } else {
+                panic!("Malformed array assignment for variable: {var}")
+            }
         }
 
         [Keyword(If), condition @ ..] => {
-            format!("if ({}) {{", generate_expression(condition, false))
+            format!("if ({}) {{", generate_expression(condition))
         }
         [Keyword(Else)] => "else {".to_string(),
         [Keyword(Else), Keyword(If), condition @ ..] => {
-            format!("else if ({}) {{", generate_expression(condition, false))
+            format!("else if ({}) {{", generate_expression(condition))
         }
 
         [Keyword(Loop)] => "while (true) {".to_string(),
@@ -170,12 +230,12 @@ fn match_c_code(tokens: &Vec<Token>, mut filename: &str, tabs: u8) -> String {
         [Keyword(Loop), Identifier(var), Keyword(In), expression @ ..] => {
             format!(
                 "for (const Value& {var} : {}) {{",
-                generate_expression(expression, false)
+                generate_expression(expression)
             )
         }
 
         [Keyword(Loop), expression @ ..] => {
-            format!("while ({}) {{", generate_expression(expression, false))
+            format!("while ({}) {{", generate_expression(expression))
         }
 
         _ => {
@@ -195,6 +255,14 @@ fn match_h_code(tokens: &Vec<Token>) -> String {
             SpecialCharacter(CloseParenthesis),
         ] => format!("Value {function}({});", generate_params(params)),
 
+        [Keyword(Let), Identifier(var), ..] => {
+            format!("extern Value {var};")
+        }
+
+        [Keyword(Const), Identifier(var), ..] => {
+            format!("extern const Value {var};")
+        }
+
         _ => "".to_string(),
     }
 }
@@ -213,6 +281,16 @@ fn add_tabs_after_newlines(code: &str, tabs: u8, filename: &str) -> String {
         .join("\n")
 }
 
+fn to_operation_sign(operation: &SpecialCharacter) -> &str {
+    match operation {
+        Plus => "+",
+        Minus => "-",
+        Asterisk => "*",
+        Slash => "/",
+        _ => panic!("Unexpected token for operation sign: {:?}", operation),
+    }
+}
+
 fn generate_params(params: &[Token]) -> String {
     let mut param_str = String::new();
     let mut is_comma = false;
@@ -224,7 +302,7 @@ fn generate_params(params: &[Token]) -> String {
                 is_comma = false;
             }
             Identifier(name) if !is_comma => {
-                param_str.push_str(&format!("const Value& {name}"));
+                param_str.push_str(&format!("Value {name}"));
                 is_comma = true;
             }
             _ => panic!("Unexpected token in function parameters: {:?}", param),
@@ -234,7 +312,7 @@ fn generate_params(params: &[Token]) -> String {
     param_str
 }
 
-fn generate_expression(expression: &[Token], are_commas_allowed: bool) -> String {
+fn generate_expression(expression: &[Token]) -> String {
     if expression.is_empty() {
         panic!("Expression requires at least one token");
     }
@@ -243,14 +321,18 @@ fn generate_expression(expression: &[Token], are_commas_allowed: bool) -> String
     let mut tokens = expression.iter().peekable();
 
     while let Some(token) = tokens.next() {
-        if (are_commas_allowed) && token == &SpecialCharacter(Comma) {
-            expression_str.push_str(", ");
-            continue;
-        }
-
         match token {
             Identifier(id) => {
-                expression_str.push_str(id);
+                if [
+                    "print", "type", "len", "null", "int", "float", "bool", "char", "string",
+                    "list",
+                ]
+                .contains(&id.as_str())
+                {
+                    expression_str.push_str(&format!("_{}", id));
+                } else {
+                    expression_str.push_str(id);
+                }
             }
             Literal(value) => match value {
                 Str(s) => {
@@ -263,7 +345,11 @@ fn generate_expression(expression: &[Token], are_commas_allowed: bool) -> String
                     expression_str.push_str(&format!("Value({n})"));
                 }
             },
+            SpecialCharacter(Comma) => {
+                expression_str.push_str(", ");
+            }
             SpecialCharacter(Equals) => expression_str.push_str("="),
+            SpecialCharacter(ExclamationMark) => expression_str.push_str("!"),
             SpecialCharacter(Dot) => expression_str.push_str("::"),
             SpecialCharacter(Plus) => expression_str.push_str("+"),
             SpecialCharacter(Minus) => expression_str.push_str("-"),

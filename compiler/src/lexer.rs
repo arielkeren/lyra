@@ -102,7 +102,7 @@ pub fn get_tokens(line: &str) -> (Vec<crate::types::Token>, u8) {
                 tokens.push(Keyword(keyword));
             } else if word.parse::<f64>().is_ok() {
                 tokens.push(Literal(Number(word)));
-            } else if word.chars().all(|c| c.is_ascii_alphanumeric())
+            } else if word.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
                 && !word.chars().next().unwrap_or('0').is_ascii_digit()
             {
                 tokens.push(Identifier(word));
@@ -122,6 +122,7 @@ fn is_special_character(ch: char) -> bool {
 fn get_special_character(ch: char) -> Option<crate::types::SpecialCharacter> {
     match ch {
         '=' => Some(Equals),
+        '!' => Some(ExclamationMark),
         '.' => Some(Dot),
         ',' => Some(Comma),
         '+' => Some(Plus),
@@ -145,8 +146,6 @@ fn get_keyword(word: &str) -> Option<crate::types::Keyword> {
     match word {
         "let" => Some(Let),
         "const" => Some(Const),
-        "print" => Some(Print),
-        "type" => Some(Type),
         "return" => Some(Return),
         "import" => Some(Import),
         "if" => Some(If),

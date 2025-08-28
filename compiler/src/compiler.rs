@@ -54,10 +54,10 @@ fn get_writers(filenames: &Vec<String>) -> Vec<Writer> {
 fn generate_c_file(filename: &str, reader: &mut Reader, writer: &mut Writer) {
     write_includes(filename, writer);
 
-    let mut after_imports = false;
     let mut last_tabs = 0;
     let mut c_code;
     let mut h_code;
+    let mut lines = reader.lines().peekable();
     let mut header_writer = if filename == "main.ly" {
         None
     } else {
@@ -66,7 +66,33 @@ fn generate_c_file(filename: &str, reader: &mut Reader, writer: &mut Writer) {
 
     write_header_guard(filename, &mut header_writer);
 
-    for line in reader.lines() {
+    while let Some(line) = lines.peek() {
+        let line = line
+            .as_ref()
+            .expect("Failed to read line from input file")
+            .clone();
+        let (tokens, _) = crate::lexer::get_tokens(&line);
+
+        if tokens.is_empty() {
+            lines.next();
+            continue;
+        }
+
+        let code = crate::generator::generate_imports(&tokens);
+        if let Some(code) = code {
+            writeln!(writer, "{code}").expect("Failed to write to output file");
+        } else {
+            break;
+        }
+
+        lines.next();
+    }
+
+    if filename == "main.ly" {
+        writeln!(writer, "int main() {{").expect("Failed to write to output file");
+    }
+
+    while let Some(line) = lines.next() {
         let line = line.expect("Failed to read line from input file");
         let (tokens, mut tabs) = crate::lexer::get_tokens(&line);
 
@@ -74,8 +100,7 @@ fn generate_c_file(filename: &str, reader: &mut Reader, writer: &mut Writer) {
             tabs = last_tabs;
         }
 
-        (c_code, h_code, after_imports) =
-            crate::generator::generate(&tokens, filename, after_imports, tabs, last_tabs);
+        (c_code, h_code) = crate::generator::generate(&tokens, filename, tabs, last_tabs);
 
         if !c_code.is_empty() {
             writeln!(writer, "{c_code}").expect("Failed to write to output file");
@@ -96,13 +121,12 @@ fn generate_c_file(filename: &str, reader: &mut Reader, writer: &mut Writer) {
             format!("{}}}", "\t".repeat(brace_tabs as usize))
         })
         .collect::<Vec<_>>()
-        .join("\n")
-        + "\n";
+        .join("\n");
 
     write!(writer, "{scope}").expect("Failed to write scope end");
     write_header_ending(&mut header_writer);
     if filename == "main.ly" {
-        write_ending(writer);
+        write_main_ending(writer);
     }
 }
 
@@ -117,29 +141,36 @@ fn get_header_writer(filename: &str) -> Writer {
 }
 
 fn write_includes(filename: &str, writer: &mut Writer) {
-    let ending = if filename == "main.ly" { "" } else { "\n" };
-    writeln!(writer, "#include \"std.hpp\"{ending}").expect("Failed to write includes");
+    if filename == "main.ly" {
+        writeln!(writer, "#include \"std.hpp\"\n").expect("Failed to write includes");
+    } else {
+        writeln!(
+            writer,
+            "#include \"{}.hpp\"\n",
+            filename.trim_end_matches(".ly")
+        )
+        .expect("Failed to write includes");
+    }
 }
 
 fn write_header_guard(filename: &str, header_writer: &mut Option<Writer>) {
     if let Some(h_writer) = header_writer {
-        let namespace = format!("{}_HPP", filename.trim_end_matches(".ly"));
-        let guard_name = namespace.to_uppercase();
-        writeln!(
+        let namespace = filename.trim_end_matches(".ly");
+        write!(
             h_writer,
-            "#ifndef {guard_name}\n#define {guard_name}\n\nnamespace {namespace}\n",
+            "#ifndef {namespace}_HPP\n#define {namespace}_HPP\n\n#include \"std.hpp\"\n\nnamespace {namespace} {{\n",
         )
         .expect("Failed to write header guard");
     }
 }
 
-fn write_ending(writer: &mut Writer) {
+fn write_main_ending(writer: &mut Writer) {
     write!(writer, "}}").expect("Failed to write main function end");
 }
 
 fn write_header_ending(header_writer: &mut Option<Writer>) {
     if let Some(h_writer) = header_writer {
-        write!(h_writer, "\n#endif").expect("Failed to write header end");
+        write!(h_writer, "}}\n\n#endif").expect("Failed to write header end");
     }
 }
 
@@ -163,7 +194,7 @@ fn create_executable(filenames: &Vec<String>, executable_name: &str, release: bo
 
     let mut cmd = std::process::Command::new("g++");
     cmd.arg("-Ibuild/include");
-    cmd.args(&["-Werror", "-Wall", "-Wextra", "-pedantic"]);
+    cmd.args(&["-std=c++17", "-Werror", "-Wall", "-Wextra", "-pedantic"]);
     if release {
         cmd.args([
             "-O3",
