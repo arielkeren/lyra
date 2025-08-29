@@ -28,10 +28,14 @@ pub fn generate(
         (0..last_tabs - tabs)
             .map(|i| {
                 let brace_tabs = last_tabs - i - 1;
-                if filename != "main.ly" && brace_tabs == 0 {
-                    return format!("{}}}\n", "\t".repeat(brace_tabs as usize));
-                }
-                format!("{}}}", "\t".repeat(brace_tabs as usize))
+
+                let closing_brace = if filename != "main.ly" && brace_tabs == 0 {
+                    "\treturn Value(nullptr);\n}".to_string()
+                } else {
+                    "}".to_string()
+                };
+
+                format!("{}{}", "\t".repeat(brace_tabs as usize), closing_brace)
             })
             .collect::<Vec<_>>()
             .join("\n")

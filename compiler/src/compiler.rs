@@ -119,8 +119,15 @@ fn generate_c_file(filename: &str, reader: &mut Reader, writer: &mut Writer) {
 
     let scope = (0..last_tabs)
         .map(|i| {
-            let brace_tabs = last_tabs - 1 - i;
-            format!("{}}}", "\t".repeat(brace_tabs as usize))
+            let brace_tabs = last_tabs - i - 1;
+
+            let closing_brace = if filename != "main.ly" && brace_tabs == 0 {
+                "\treturn Value(nullptr);\n}".to_string()
+            } else {
+                "}".to_string()
+            };
+
+            format!("{}{}", "\t".repeat(brace_tabs as usize), closing_brace)
         })
         .collect::<Vec<_>>()
         .join("\n");
@@ -131,7 +138,7 @@ fn generate_c_file(filename: &str, reader: &mut Reader, writer: &mut Writer) {
     if filename == "main.ly" {
         write_main_ending(writer);
     } else {
-        write_ending(writer, methods);
+        write_ending(writer, filename.trim_end_matches(".ly"), methods);
     }
 }
 
@@ -173,7 +180,7 @@ fn write_main_ending(writer: &mut Writer) {
     write!(writer, "}}").expect("Failed to write main function end");
 }
 
-fn write_ending(writer: &mut Writer, methods: Vec<Method>) {
+fn write_ending(writer: &mut Writer, filename: &str, methods: Vec<Method>) {
     writeln!(writer, "\n[[maybe_unused]] static bool _ = []() {{")
         .expect("Failed to write method registration start");
     for method in methods {
@@ -188,7 +195,7 @@ fn write_ending(writer: &mut Writer, methods: Vec<Method>) {
             "{method}", [](const std::vector<Value>& args) -> Value {{
                 if (args.size() != {num_params})
                     throw std::runtime_error("{method} expects {num_params} args");
-                return utils_{method}({args_str});
+                return {filename}_{method}({args_str});
             }});"#
         )
         .expect("Failed to write method registration");
