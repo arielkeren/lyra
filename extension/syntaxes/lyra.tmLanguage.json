@@ -1,0 +1,108 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Lyra",
+  "patterns": [
+    { "include": "#keywords" },
+    { "include": "#strings" },
+    { "include": "#characters" },
+    { "include": "#numbers" },
+    { "include": "#comments" },
+    { "include": "#function-definitions" },
+    { "include": "#function-calls" },
+    { "include": "#operators" },
+    { "include": "#identifiers" }
+  ],
+  "repository": {
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.lyra",
+          "match": "\\b(let|const|method|return|import|if|else|loop|in|break|continue)\\b"
+        },
+        {
+          "name": "keyword.operator.logical.lyra",
+          "match": "\\b(and|or|not)\\b"
+        },
+        {
+          "name": "constant.language.boolean.lyra",
+          "match": "\\b(true|false)\\b"
+        },
+        {
+          "name": "constant.language.null.lyra",
+          "match": "\\b(null)\\b"
+        }
+      ]
+    },
+    "function-definitions": {
+      "name": "entity.name.function.lyra",
+      "match": "^\\s*[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*\\()"
+    },
+    "function-calls": {
+      "name": "entity.name.function.lyra",
+      "match": "\\b[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*\\()"
+    },
+    "strings": {
+      "name": "string.quoted.double.lyra",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.lyra",
+          "match": "\\\\[ntr\\\\']"
+        }
+      ]
+    },
+    "characters": {
+      "name": "string.quoted.single.lyra",
+      "begin": "'",
+      "end": "'",
+      "patterns": [
+        {
+          "name": "constant.character.escape.lyra",
+          "match": "\\\\[ntr\\\\']"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric.lyra",
+      "match": "\\b\\d+(\\.\\d+)?\\b"
+    },
+    "comments": {
+      "name": "comment.line.double-slash.lyra",
+      "match": "//.*$"
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.assignment.lyra",
+          "match": "="
+        },
+        {
+          "name": "keyword.operator.comparison.lyra",
+          "match": "[!><]"
+        },
+        {
+          "name": "keyword.operator.arithmetic.lyra",
+          "match": "[+\\-*/%]"
+        },
+        {
+          "name": "punctuation.accessor.lyra",
+          "match": "\\."
+        },
+        {
+          "name": "punctuation.separator.lyra",
+          "match": "[,:;]"
+        },
+        {
+          "name": "punctuation.section.brackets.lyra",
+          "match": "[\\[\\]{}()]"
+        }
+      ]
+    },
+    "identifiers": {
+      "name": "variable.other.lyra",
+      "match": "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b"
+    }
+  },
+  "scopeName": "source.lyra"
+}

@@ -1,0 +1,35 @@
+{
+  "name": "lyra",
+  "displayName": "Lyra",
+  "description": "Syntax highlighting for Lyra",
+  "version": "0.0.1",
+  "publisher": "arielkeren",
+  "engines": {
+    "vscode": "^1.103.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "lyra",
+        "aliases": [
+          "Lyra",
+          "lyra"
+        ],
+        "extensions": [
+          ".ly"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "lyra",
+        "scopeName": "source.lyra",
+        "path": "./syntaxes/lyra.tmLanguage.json"
+      }
+    ]
+  }
+}
