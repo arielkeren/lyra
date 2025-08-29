@@ -124,6 +124,7 @@ fn get_special_character(ch: char) -> Option<crate::types::SpecialCharacter> {
         '=' => Some(Equals),
         '!' => Some(ExclamationMark),
         '.' => Some(Dot),
+        ':' => Some(Colon),
         ',' => Some(Comma),
         '+' => Some(Plus),
         '-' => Some(Minus),
@@ -146,6 +147,7 @@ fn get_keyword(word: &str) -> Option<crate::types::Keyword> {
     match word {
         "let" => Some(Let),
         "const" => Some(Const),
+        "method" => Some(Method),
         "return" => Some(Return),
         "import" => Some(Import),
         "if" => Some(If),

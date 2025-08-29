@@ -1,30 +1,45 @@
 #ifndef STD_HPP
 #define STD_HPP
 
+#include <functional>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
-enum class Type { NONE, INT, FLOAT, BOOL, CHAR, STRING, LIST };
+enum class Type {
+    Null,
+    Bool,
+    Char,
+    Int,
+    Float,
+    String,
+    List,
+    Function,
+    Object
+};
 
 class Value {
    private:
     Type type_;
-    double numeric_value_;
-    std::vector<Value> list_value_;
+    double value_;
+    std::vector<Value> list_;
+    std::function<Value(const std::vector<Value>&)> function_;
+    std::unordered_map<std::string, Value> fields_;
 
-    bool is_list() const { return type_ == Type::LIST; }
-    bool is_string() const { return type_ == Type::STRING; }
-    bool is_iterable() const { return is_list() || is_string(); }
-    bool is_int() const { return type_ == Type::INT; }
-    bool is_float() const { return type_ == Type::FLOAT; }
-    bool is_value() const {
-        return type_ == Type::INT || type_ == Type::FLOAT ||
-               type_ == Type::BOOL || type_ == Type::CHAR;
+    static std::unordered_map<std::string,
+                              std::function<Value(const std::vector<Value>&)>>
+        global_methods_;
+
+    bool is_iterable() const {
+        return type_ == Type::List || type_ == Type::String;
     }
-    bool is_null() const { return type_ == Type::NONE; }
+    bool is_value() const {
+        return type_ == Type::Int || type_ == Type::Float ||
+               type_ == Type::Bool || type_ == Type::Char;
+    }
 
    public:
     Value(const Value& other);
@@ -35,6 +50,30 @@ class Value {
     Value(char val);
     Value(const char* val);
     Value(const std::vector<Value>& val);
+    Value() : type_(Type::Null), value_(0.0) {}
+
+    Value(std::function<Value(const std::vector<Value>&)> func)
+        : type_(Type::Function), value_(0.0), function_(func) {}
+    template <typename... Args>
+    Value operator()(const Args&... args) const {
+        if (type_ != Type::Function || !function_) {
+            throw std::runtime_error("Value is not callable");
+        }
+        std::vector<Value> arg_vector = {Value(args)...};
+        return function_(arg_vector);
+    }
+    Value operator()() const {
+        if (type_ != Type::Function || !function_) {
+            throw std::runtime_error("Value is not callable");
+        }
+        return function_({});
+    }
+    void set_field(const std::string& name, const Value& value) {
+        if (type_ != Type::Object) {
+            throw std::runtime_error("Value is not an object");
+        }
+        fields_[name] = value;
+    }
 
     explicit operator bool() const;
 
@@ -69,7 +108,7 @@ class Value {
     Value operator--(int);
 
     Value& operator[](Value index);
-    const Value& operator[](Value index) const;
+    Value operator[](Value index) const;
 
     std::vector<Value>::const_iterator begin() const;
     std::vector<Value>::const_iterator end() const;
@@ -78,9 +117,47 @@ class Value {
 
     std::string to_string() const;
 
-    Type type() const { return type_; }
-    double get_numeric_value() const { return numeric_value_; }
-    const std::vector<Value>& get_list_value() const { return list_value_; }
+    std::string type() const;
+    double get_value() const { return value_; }
+    const std::vector<Value>& get_list() const { return list_; }
+
+    static void register_method(
+        const std::string& name,
+        std::function<Value(const std::vector<Value>&)> method) {
+        global_methods_[name] = method;
+    }
+
+    Value operator[](const char* method_name) {
+        if (global_methods_.find(method_name) == global_methods_.end()) {
+            throw std::runtime_error("Method '" + std::string(method_name) +
+                                     "' not found");
+        }
+
+        Value callable_method(
+            [this, method_name](const std::vector<Value>& args) -> Value {
+                std::vector<Value> method_args = {*this};
+                method_args.insert(method_args.end(), args.begin(), args.end());
+                return global_methods_[method_name](method_args);
+            });
+
+        return callable_method;
+    }
+
+    Value operator[](const char* method_name) const {
+        if (global_methods_.find(method_name) == global_methods_.end()) {
+            throw std::runtime_error("Method '" + std::string(method_name) +
+                                     "' not found");
+        }
+
+        Value callable_method(
+            [this, method_name](const std::vector<Value>& args) -> Value {
+                std::vector<Value> method_args = {*this};
+                method_args.insert(method_args.end(), args.begin(), args.end());
+                return global_methods_[method_name](method_args);
+            });
+
+        return callable_method;
+    }
 };
 
 template <typename... Args>

@@ -1,4 +1,4 @@
-use crate::types::{Reader, Writer};
+use crate::types::{Method, Reader, Writer};
 use std::io::BufRead;
 use std::io::Write;
 
@@ -58,6 +58,7 @@ fn generate_c_file(filename: &str, reader: &mut Reader, writer: &mut Writer) {
     let mut c_code;
     let mut h_code;
     let mut lines = reader.lines().peekable();
+    let mut methods = Vec::new();
     let mut header_writer = if filename == "main.ly" {
         None
     } else {
@@ -100,7 +101,8 @@ fn generate_c_file(filename: &str, reader: &mut Reader, writer: &mut Writer) {
             tabs = last_tabs;
         }
 
-        (c_code, h_code) = crate::generator::generate(&tokens, filename, tabs, last_tabs);
+        (c_code, h_code) =
+            crate::generator::generate(&tokens, filename, tabs, last_tabs, &mut methods);
 
         if !c_code.is_empty() {
             writeln!(writer, "{c_code}").expect("Failed to write to output file");
@@ -125,8 +127,11 @@ fn generate_c_file(filename: &str, reader: &mut Reader, writer: &mut Writer) {
 
     write!(writer, "{scope}").expect("Failed to write scope end");
     write_header_ending(&mut header_writer);
+
     if filename == "main.ly" {
         write_main_ending(writer);
+    } else {
+        write_ending(writer, methods);
     }
 }
 
@@ -166,6 +171,29 @@ fn write_header_guard(filename: &str, header_writer: &mut Option<Writer>) {
 
 fn write_main_ending(writer: &mut Writer) {
     write!(writer, "}}").expect("Failed to write main function end");
+}
+
+fn write_ending(writer: &mut Writer, methods: Vec<Method>) {
+    writeln!(writer, "\n[[maybe_unused]] static bool _ = []() {{")
+        .expect("Failed to write method registration start");
+    for method in methods {
+        let Method {
+            method,
+            num_params,
+            args_str,
+        } = method;
+        writeln!(
+            writer,
+            r#"Value::register_method(
+            "{method}", [](const std::vector<Value>& args) -> Value {{
+                if (args.size() != {num_params})
+                    throw std::runtime_error("{method} expects {num_params} args");
+                return utils_{method}({args_str});
+            }});"#
+        )
+        .expect("Failed to write method registration");
+    }
+    write!(writer, "return true;\n}}();").expect("Failed to write method registration end");
 }
 
 fn write_header_ending(header_writer: &mut Option<Writer>) {

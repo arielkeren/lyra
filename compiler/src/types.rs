@@ -1,11 +1,18 @@
 pub type Reader = std::io::BufReader<std::fs::File>;
 pub type Writer = std::io::BufWriter<std::fs::File>;
 
+pub struct Method {
+    pub method: String,
+    pub args_str: String,
+    pub num_params: usize,
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum SpecialCharacter {
     Equals,
     ExclamationMark,
     Dot,
+    Colon,
     Comma,
     Plus,
     Minus,
@@ -26,6 +33,7 @@ pub enum SpecialCharacter {
 pub enum Keyword {
     Let,
     Const,
+    Method,
     Return,
     Import,
     If,

@@ -1,5 +1,6 @@
 use crate::types::Keyword::*;
 use crate::types::Literal::*;
+use crate::types::Method;
 use crate::types::SpecialCharacter;
 use crate::types::SpecialCharacter::*;
 use crate::types::Token;
@@ -16,7 +17,13 @@ pub fn generate_imports(tokens: &[Token]) -> Option<String> {
     }
 }
 
-pub fn generate(tokens: &Vec<Token>, filename: &str, tabs: u8, last_tabs: u8) -> (String, String) {
+pub fn generate(
+    tokens: &Vec<Token>,
+    filename: &str,
+    tabs: u8,
+    last_tabs: u8,
+    methods: &mut Vec<Method>,
+) -> (String, String) {
     let scope = if tabs < last_tabs {
         (0..last_tabs - tabs)
             .map(|i| {
@@ -32,6 +39,31 @@ pub fn generate(tokens: &Vec<Token>, filename: &str, tabs: u8, last_tabs: u8) ->
     } else {
         "".to_string()
     };
+
+    if filename != "main" && tabs == 0 {
+        if let [
+            Keyword(Method),
+            Identifier(method),
+            SpecialCharacter(OpenParenthesis),
+            params @ ..,
+            SpecialCharacter(CloseParenthesis),
+        ] = tokens.as_slice()
+        {
+            let params_str = generate_params(params);
+            let num_params = if params_str.is_empty() {
+                0
+            } else {
+                params_str.matches(',').count() + 1
+            };
+            let args_str = generate_args(num_params);
+
+            methods.push(Method {
+                method: method.to_string(),
+                num_params,
+                args_str,
+            });
+        }
+    }
 
     (
         format!("{}{}", scope, match_c_code(tokens, filename, tabs)),
@@ -52,10 +84,24 @@ fn match_c_code(tokens: &Vec<Token>, mut filename: &str, tabs: u8) -> String {
         [Keyword(Break)] => "break;".to_string(),
         [Keyword(Continue)] => "continue;".to_string(),
 
-        [Keyword(Return)] if filename != "main" => "return Value(nullptr);".to_string(),
-
         [Keyword(Return), expression @ ..] if filename != "main" => {
-            format!("return {};", generate_expression(expression))
+            let return_value = if expression.is_empty() {
+                "Value(nullptr)".to_string()
+            } else {
+                generate_expression(expression)
+            };
+
+            format!("return {};", return_value)
+        }
+
+        [
+            Keyword(Method),
+            Identifier(method),
+            SpecialCharacter(OpenParenthesis),
+            params @ ..,
+            SpecialCharacter(CloseParenthesis),
+        ] if filename != "main" && tabs == 0 => {
+            format!("Value {filename}_{method}({}) {{", generate_params(params))
         }
 
         [
@@ -72,13 +118,37 @@ fn match_c_code(tokens: &Vec<Token>, mut filename: &str, tabs: u8) -> String {
 
         [
             Identifier(file),
-            SpecialCharacter(Dot),
+            SpecialCharacter(Colon),
+            SpecialCharacter(Colon),
             Identifier(function),
             SpecialCharacter(OpenParenthesis),
             args @ ..,
             SpecialCharacter(CloseParenthesis),
         ] => {
-            format!("{file}::{function}({});", generate_expression(args))
+            let arguments = if args.is_empty() {
+                "".to_string()
+            } else {
+                generate_expression(args)
+            };
+
+            format!("{file}::{function}({});", arguments)
+        }
+
+        [
+            Identifier(object),
+            SpecialCharacter(Dot),
+            Identifier(method),
+            SpecialCharacter(OpenParenthesis),
+            args @ ..,
+            SpecialCharacter(CloseParenthesis),
+        ] => {
+            let arguments = if args.is_empty() {
+                "".to_string()
+            } else {
+                generate_expression(args)
+            };
+
+            format!("{object}[\"{method}\"]({});", arguments)
         }
 
         [
@@ -87,7 +157,13 @@ fn match_c_code(tokens: &Vec<Token>, mut filename: &str, tabs: u8) -> String {
             args @ ..,
             SpecialCharacter(CloseParenthesis),
         ] if function == "print" => {
-            format!("_print({});", generate_expression(args))
+            let arguments = if args.is_empty() {
+                "".to_string()
+            } else {
+                generate_expression(args)
+            };
+
+            format!("_print({});", arguments)
         }
 
         [
@@ -181,7 +257,8 @@ fn match_c_code(tokens: &Vec<Token>, mut filename: &str, tabs: u8) -> String {
 
         [
             Identifier(file),
-            SpecialCharacter(Dot),
+            SpecialCharacter(Colon),
+            SpecialCharacter(Colon),
             Identifier(var),
             SpecialCharacter(Equals),
             expression @ ..,
@@ -291,6 +368,19 @@ fn to_operation_sign(operation: &SpecialCharacter) -> &str {
     }
 }
 
+fn generate_args(num_args: usize) -> String {
+    let mut args_str = String::new();
+
+    for i in 0..num_args {
+        args_str.push_str(&format!("args[{i}], "));
+    }
+
+    args_str.pop();
+    args_str.pop();
+
+    args_str
+}
+
 fn generate_params(params: &[Token]) -> String {
     let mut param_str = String::new();
     let mut is_comma = false;
@@ -345,12 +435,19 @@ fn generate_expression(expression: &[Token]) -> String {
                     expression_str.push_str(&format!("Value({n})"));
                 }
             },
+            SpecialCharacter(Dot) => {
+                if let Some(Identifier(method)) = tokens.next() {
+                    expression_str.push_str(&format!("[\"{method}\"]"));
+                } else {
+                    panic!("Expected method name after dot");
+                }
+            }
             SpecialCharacter(Comma) => {
                 expression_str.push_str(", ");
             }
             SpecialCharacter(Equals) => expression_str.push_str("="),
             SpecialCharacter(ExclamationMark) => expression_str.push_str("!"),
-            SpecialCharacter(Dot) => expression_str.push_str("::"),
+            SpecialCharacter(Colon) => expression_str.push_str(":"),
             SpecialCharacter(Plus) => expression_str.push_str("+"),
             SpecialCharacter(Minus) => expression_str.push_str("-"),
             SpecialCharacter(Asterisk) => expression_str.push_str("*"),

@@ -4,40 +4,39 @@
 #include <cstring>
 #include <sstream>
 
+std::unordered_map<std::string, std::function<Value(const std::vector<Value>&)>>
+    Value::global_methods_;
+
 // Constructors
 Value::Value(const Value& other)
-    : type_(other.type_),
-      numeric_value_(other.numeric_value_),
-      list_value_(other.list_value_) {}
+    : type_(other.type_), value_(other.value_), list_(other.list_) {}
 
-Value::Value(std::nullptr_t) : type_(Type::NONE) {}
+Value::Value(std::nullptr_t) : type_(Type::Null) {}
 
 Value::Value(int value)
-    : type_(Type::INT), numeric_value_(static_cast<double>(value)) {}
+    : type_(Type::Int), value_(static_cast<double>(value)) {}
 
-Value::Value(double value) : type_(Type::FLOAT), numeric_value_(value) {}
+Value::Value(double value) : type_(Type::Float), value_(value) {}
 
-Value::Value(bool value)
-    : type_(Type::BOOL), numeric_value_(value ? 1.0 : 0.0) {}
+Value::Value(bool value) : type_(Type::Bool), value_(value ? 1.0 : 0.0) {}
 
 Value::Value(char value)
-    : type_(Type::CHAR), numeric_value_(static_cast<double>(value)) {}
+    : type_(Type::Char), value_(static_cast<double>(value)) {}
 
-Value::Value(const char* value) : type_(Type::STRING) {
-    list_value_.reserve(strlen(value));
-    for (const char* p = value; *p != '\0'; ++p)
-        list_value_.push_back(Value(*p));
+Value::Value(const char* value) : type_(Type::String) {
+    list_.reserve(strlen(value));
+    for (const char* p = value; *p != '\0'; ++p) list_.push_back(Value(*p));
 }
 
 Value::Value(const std::vector<Value>& value)
-    : type_(Type::LIST), list_value_(value) {}
+    : type_(Type::List), list_(value) {}
 
 // Assignment operators
 Value& Value::operator=(const Value& other) {
     if (this != &other) {
         type_ = other.type_;
-        numeric_value_ = other.numeric_value_;
-        list_value_ = other.list_value_;
+        value_ = other.value_;
+        list_ = other.list_;
     }
     return *this;
 }
@@ -45,19 +44,17 @@ Value& Value::operator=(const Value& other) {
 // Arithmetic operators
 Value Value::operator+(const Value& other) const {
     if (is_value() && other.is_value())
-        return this->is_float() || other.is_float()
-                   ? Value(numeric_value_ + other.numeric_value_)
-                   : Value(static_cast<int>(numeric_value_ +
-                                            other.numeric_value_));
+        return type_ == Type::Float || other.type_ == Type::Float
+                   ? Value(value_ + other.value_)
+                   : Value(static_cast<int>(value_ + other.value_));
 
-    if (is_list() && other.is_list()) {
-        std::vector<Value> result = list_value_;
-        result.insert(result.end(), other.list_value_.begin(),
-                      other.list_value_.end());
+    if (type_ == Type::List && other.type_ == Type::List) {
+        std::vector<Value> result = list_;
+        result.insert(result.end(), other.list_.begin(), other.list_.end());
         return Value(result);
     }
 
-    if (is_string() || other.is_string())
+    if (type_ == Type::String || other.type_ == Type::String)
         return Value((to_string() + other.to_string()).c_str());
 
     throw std::runtime_error("Cannot add these types");
@@ -66,9 +63,9 @@ Value Value::operator+(const Value& other) const {
 Value Value::operator-(const Value& other) const {
     if (!is_value() || !other.is_value())
         throw std::runtime_error("Cannot subtract non-value types");
-    if (is_float() || other.is_float())
-        return Value(numeric_value_ - other.numeric_value_);
-    return Value(static_cast<int>(numeric_value_ - other.numeric_value_));
+    if (type_ == Type::Float || other.type_ == Type::Float)
+        return Value(value_ - other.value_);
+    return Value(static_cast<int>(value_ - other.value_));
 }
 
 Value Value::operator-() const { return Value(0) - *this; }
@@ -76,36 +73,36 @@ Value Value::operator-() const { return Value(0) - *this; }
 Value Value::operator*(const Value& other) const {
     if (!is_value() || !other.is_value())
         throw std::runtime_error("Cannot multiply non-value types");
-    if (is_float() || other.is_float())
-        return Value(numeric_value_ * other.numeric_value_);
-    return Value(static_cast<int>(numeric_value_ * other.numeric_value_));
+    if (type_ == Type::Float || other.type_ == Type::Float)
+        return Value(value_ * other.value_);
+    return Value(static_cast<int>(value_ * other.value_));
 }
 
 Value Value::operator/(const Value& other) const {
     if (!is_value() || !other.is_value())
         throw std::runtime_error("Cannot divide non-value types");
-    if (other.numeric_value_ == 0.0)
-        throw std::runtime_error("Division by zero");
-    if (is_float() || other.is_float())
-        return Value(numeric_value_ / other.numeric_value_);
-    return Value(static_cast<int>(numeric_value_ / other.numeric_value_));
+    if (other.value_ == 0.0) throw std::runtime_error("Division by zero");
+    if (type_ == Type::Float || other.type_ == Type::Float)
+        return Value(value_ / other.value_);
+    return Value(static_cast<int>(value_ / other.value_));
 }
 
 Value Value::operator%(const Value& other) const {
     if (!is_value() || !other.is_value())
         throw std::runtime_error("Cannot use modulo with non-value types");
-    if (other.numeric_value_ == 0.0)
+    if (other.value_ == 0.0)
         throw std::runtime_error("Division by zero in modulo operation");
 
-    double dividend = numeric_value_;
-    double divisor = other.numeric_value_;
+    double dividend = value_;
+    double divisor = other.value_;
 
     double quotient = dividend / divisor;
     long long int_quotient = static_cast<long long>(quotient);
 
     double result = dividend - (divisor * int_quotient);
 
-    if (is_float() || other.is_float()) return Value(result);
+    if (type_ == Type::Float || other.type_ == Type::Float)
+        return Value(result);
     return Value(static_cast<int>(result));
 }
 
@@ -132,19 +129,16 @@ Value& Value::operator/=(const Value& other) {
 
 // Comparison operators
 bool Value::operator==(const Value& other) const {
-    if (is_value() && other.is_value())
-        return numeric_value_ == other.numeric_value_;
-    if (is_iterable() && other.is_iterable())
-        return list_value_ == other.list_value_;
-    return is_null() && other.is_null();
+    if (is_value() && other.is_value()) return value_ == other.value_;
+    if (is_iterable() && other.is_iterable()) return list_ == other.list_;
+    return type_ == Type::Null && other.type_ == Type::Null;
 }
 
 bool Value::operator!=(const Value& other) const { return !(*this == other); }
 
 bool Value::operator<(const Value& other) const {
-    if (is_value() && other.is_value())
-        return numeric_value_ < other.numeric_value_;
-    if (is_string() && other.is_string())
+    if (is_value() && other.is_value()) return value_ < other.value_;
+    if (type_ == Type::String && other.type_ == Type::String)
         return to_string() < other.to_string();
     throw std::runtime_error("Cannot compare these types");
 }
@@ -193,72 +187,91 @@ Value Value::operator--(int) {
 
 // Indexing operations
 Value& Value::operator[](Value index) {
+    if (index.type_ == Type::String) {
+        if (fields_.find(index.to_string()) != fields_.end())
+            return fields_.at(index.to_string());
+        fields_[index.to_string()] = Value(nullptr);
+        return fields_.at(index.to_string());
+    }
+
     if (!is_iterable())
         throw std::runtime_error("Cannot index non-iterable type");
-    if (!index.is_int()) throw std::runtime_error("Index must be an integer");
-    if (index.numeric_value_ >= list_value_.size())
+    if (index.type_ != Type::Int)
+        throw std::runtime_error("Index must be an integer");
+    if (index.value_ >= list_.size())
         throw std::out_of_range("Index out of range");
-    return list_value_[static_cast<size_t>(index.numeric_value_)];
+    return list_[static_cast<size_t>(index.value_)];
 }
 
-const Value& Value::operator[](Value index) const {
+Value Value::operator[](Value index) const {
+    if (index.type_ == Type::String && type_ == Type::Object) {
+        if (fields_.find(index.to_string()) != fields_.end())
+            return fields_.at(index.to_string());
+        return Value(nullptr);
+    }
+
     if (!is_iterable())
         throw std::runtime_error("Cannot index non-iterable type");
-    if (!index.is_int()) throw std::runtime_error("Index must be an integer");
-    if (index.numeric_value_ >= list_value_.size())
+    if (index.type_ != Type::Int)
+        throw std::runtime_error("Index must be an integer");
+    if (index.value_ >= list_.size())
         throw std::out_of_range("Index out of range");
-    return list_value_[static_cast<size_t>(index.numeric_value_)];
+    return list_[static_cast<size_t>(index.value_)];
 }
 
 // Iterator support
 std::vector<Value>::const_iterator Value::begin() const {
     if (!is_iterable())
         throw std::runtime_error("Cannot iterate non-iterable type");
-    return list_value_.begin();
+    return list_.begin();
 }
 
 std::vector<Value>::const_iterator Value::end() const {
     if (!is_iterable())
         throw std::runtime_error("Cannot iterate non-iterable type");
-    return list_value_.end();
+    return list_.end();
 }
 
 // Conversions
 std::string Value::to_string() const {
     switch (type_) {
-        case Type::NONE:
+        case Type::Null:
             return "null";
-        case Type::INT:
-            return std::to_string(static_cast<int>(numeric_value_));
-        case Type::FLOAT:
-            return std::to_string(numeric_value_);
-        case Type::BOOL:
-            return (numeric_value_ == 0.0 ? "false" : "true");
-        case Type::CHAR:
-            return std::string(1, static_cast<char>(numeric_value_));
-        case Type::STRING: {
+        case Type::Bool:
+            return (value_ == 0.0 ? "false" : "true");
+        case Type::Char:
+            return std::string(1, static_cast<char>(value_));
+        case Type::Int:
+            return std::to_string(static_cast<int>(value_));
+        case Type::Float:
+            return std::to_string(value_);
+        case Type::String: {
             std::ostringstream oss;
-            for (const Value& char_var : list_value_)
-                oss << static_cast<char>(char_var.numeric_value_);
+            for (const Value& char_var : list_)
+                oss << static_cast<char>(char_var.value_);
             return oss.str();
         }
-        case Type::LIST: {
+        case Type::List: {
             std::ostringstream oss;
             oss << "[";
-            for (size_t i = 0; i < list_value_.size(); ++i) {
+            for (size_t i = 0; i < list_.size(); ++i) {
                 if (i > 0) oss << ", ";
-                oss << list_value_[i].to_string();
+                oss << list_[i].to_string();
             }
             oss << "]";
             return oss.str();
         }
+        case Type::Function:
+            return "function";
+        case Type::Object:
+            return "object";
     }
+
     return "";
 }
 
 Value::operator bool() const {
-    return (is_value() && numeric_value_ != 0.0) ||
-           (is_iterable() && !list_value_.empty());
+    return (is_value() && value_ != 0.0) || (is_iterable() && !list_.empty());
 }
 
 // Stream operator
@@ -267,63 +280,64 @@ std::ostream& operator<<(std::ostream& os, const Value& value) {
     return os;
 }
 
-Value _type(const Value& value) {
-    switch (value.type()) {
-        case Type::NONE:
-            return Value("none");
-        case Type::INT:
-            return Value("int");
-        case Type::FLOAT:
-            return Value("float");
-        case Type::BOOL:
-            return Value("bool");
-        case Type::CHAR:
-            return Value("char");
-        case Type::STRING:
-            return Value("string");
-        case Type::LIST:
-            return Value("list");
+std::string Value::type() const {
+    switch (type_) {
+        case Type::Null:
+            return "null";
+        case Type::Int:
+            return "int";
+        case Type::Float:
+            return "float";
+        case Type::Bool:
+            return "bool";
+        case Type::Char:
+            return "char";
+        case Type::String:
+            return "string";
+        case Type::List:
+            return "list";
+        case Type::Function:
+            return "function";
+        case Type::Object:
+            return "object";
     }
-    return Value("");
+    return "unknown";
 }
 
+Value _type(const Value& value) { return Value(value.type().c_str()); }
+
 Value _len(const Value& value) {
-    if (value.type() == Type::LIST || value.type() == Type::STRING)
-        return Value(static_cast<int>(value.get_list_value().size()));
+    if (value.type() == "list" || value.type() == "string")
+        return Value(static_cast<int>(value.get_list().size()));
     throw std::runtime_error("Cannot get length of non-list type");
 }
 
 Value _null(const Value&) { return Value(nullptr); }
 
 Value _int(const Value& value) {
-    if (value.type() == Type::LIST || value.type() == Type::STRING)
+    if (value.type() == "list" || value.type() == "string")
         throw std::runtime_error("Cannot convert non-value type to int");
-    return Value(static_cast<int>(value.get_numeric_value()));
+    return Value(static_cast<int>(value.get_value()));
 }
 
 Value _float(const Value& value) {
-    if (value.type() == Type::LIST || value.type() == Type::STRING)
+    if (value.type() == "list" || value.type() == "string")
         throw std::runtime_error("Cannot convert non-value type to float");
-    return Value(value.get_numeric_value());
+    return Value(value.get_value());
 }
 
 Value _bool(const Value& value) { return (bool)value; }
 
 Value _char(const Value& value) {
-    if (value.type() == Type::LIST || value.type() == Type::STRING)
+    if (value.type() == "list" || value.type() == "string")
         throw std::runtime_error("Cannot convert non-value type to char");
-    return Value(static_cast<char>(value.get_numeric_value()));
+    return Value(static_cast<char>(value.get_value()));
 }
 
 Value _string(const Value& value) { return Value(value.to_string().c_str()); }
 
 Value _list(const Value& value) {
-    switch (value.type()) {
-        case Type::LIST:
-            return value;
-        case Type::STRING:
-            return Value(value.get_list_value());
-        default:
-            return Value(std::vector<Value>{value});
-    }
+    if (value.type() == "list") return value;
+    if (value.type() == "string") return Value(value.get_list());
+    return Value(std::vector<Value>{value});
 }
