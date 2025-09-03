@@ -160,6 +160,43 @@ class Value {
     }
 };
 
+class Range {
+   private:
+    int start_;
+    int end_;
+
+   public:
+    Range(Value start, Value end) {
+        if (start.type() != "int" || end.type() != "int")
+            throw std::runtime_error("Range start and end must be integers");
+        start_ = start.get_value();
+        end_ = end.get_value();
+    }
+
+    class iterator {
+       private:
+        int current_;
+        int end_;
+
+       public:
+        iterator(int start, int end) : current_(start), end_(end) {}
+
+        Value operator*() const { return Value(current_); }
+
+        iterator& operator++() {
+            ++current_;
+            return *this;
+        }
+
+        bool operator!=(const iterator& other) const {
+            return current_ != other.current_;
+        }
+    };
+
+    iterator begin() const { return iterator(start_, end_); }
+    iterator end() const { return iterator(end_, end_); }
+};
+
 template <typename... Args>
 Value _print(const Args&... args) {
     bool first = true;

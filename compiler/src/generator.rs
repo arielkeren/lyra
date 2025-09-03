@@ -311,7 +311,7 @@ fn match_c_code(tokens: &Vec<Token>, mut filename: &str, tabs: u8) -> String {
         [Keyword(Loop), Identifier(var), Keyword(In), expression @ ..] => {
             format!(
                 "for (const Value& {var} : {}) {{",
-                generate_expression(expression)
+                generate_iterator(expression)
             )
         }
 
@@ -406,6 +406,36 @@ fn generate_params(params: &[Token]) -> String {
     param_str
 }
 
+fn generate_iterator(expression: &[Token]) -> String {
+    if expression.is_empty() {
+        panic!("Iterator requires at least one token");
+    }
+
+    if let Some(dotdot_pos) = expression
+        .windows(2)
+        .position(|window| matches!(window, [SpecialCharacter(Dot), SpecialCharacter(Dot)]))
+    {
+        let start_tokens = &expression[..dotdot_pos];
+        let end_tokens = &expression[dotdot_pos + 2..];
+
+        let start_expr = if start_tokens.is_empty() {
+            "Value(0)".to_string()
+        } else {
+            generate_expression(start_tokens)
+        };
+
+        let end_expr = if end_tokens.is_empty() {
+            "Value(2147483647)".to_string() // Max 32-bit signed integer
+        } else {
+            generate_expression(end_tokens)
+        };
+
+        format!("Range({}, {})", start_expr, end_expr)
+    } else {
+        generate_expression(expression)
+    }
+}
+
 fn generate_expression(expression: &[Token]) -> String {
     if expression.is_empty() {
         panic!("Expression requires at least one token");
@@ -443,7 +473,10 @@ fn generate_expression(expression: &[Token]) -> String {
                 if let Some(Identifier(method)) = tokens.next() {
                     expression_str.push_str(&format!("[\"{method}\"]"));
                 } else {
-                    panic!("Expected method name after dot");
+                    panic!(
+                        "Expected method name after dot, {:?}, {:?}",
+                        token, expression
+                    );
                 }
             }
             SpecialCharacter(Comma) => {

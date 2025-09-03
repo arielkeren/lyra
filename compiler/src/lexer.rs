@@ -87,10 +87,22 @@ pub fn get_tokens(line: &str) -> (Vec<crate::types::Token>, u8) {
                     && !word.is_empty()
                     && word.chars().last().unwrap().is_ascii_digit()
                 {
-                    seen_dot = true;
-                    word.push(c);
-                    chars.next();
-                } else if c.is_whitespace() || is_special_character(c) || c == '\'' {
+                    let mut peek_chars = chars.clone();
+                    peek_chars.next();
+                    if let Some(&next_ch) = peek_chars.peek() {
+                        if next_ch == '.' {
+                            break;
+                        } else if next_ch.is_ascii_digit() {
+                            seen_dot = true;
+                            word.push(c);
+                            chars.next();
+                        } else {
+                            break;
+                        }
+                    } else {
+                        break;
+                    }
+                } else if c.is_whitespace() || is_special_character(c) || c == '\'' || c == '"' {
                     break;
                 } else {
                     word.push(c);
