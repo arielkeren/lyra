@@ -205,11 +205,17 @@ Value _print(const Args&... args) {
     return Value(nullptr);
 }
 
+template <typename... Args>
+void _exit(const Args&... args) {
+    bool first = true;
+    ((std::cerr << (first ? (first = false, "") : " ") << args), ...);
+    std::cerr << std::endl;
+    std::exit(1);
+}
+
 Value _type(const Value& value);
 
 Value _len(const Value& value);
-
-void _exit(const Value& message);
 
 Value _null(const Value&);
 
