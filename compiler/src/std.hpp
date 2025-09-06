@@ -209,6 +209,8 @@ Value _type(const Value& value);
 
 Value _len(const Value& value);
 
+void _exit(const Value& message);
+
 Value _null(const Value&);
 
 Value _int(const Value& value);

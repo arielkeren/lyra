@@ -160,14 +160,14 @@ fn match_c_code(tokens: &Vec<Token>, mut filename: &str, tabs: u8) -> String {
             SpecialCharacter(OpenParenthesis),
             args @ ..,
             SpecialCharacter(CloseParenthesis),
-        ] if function == "print" => {
+        ] if function == "print" || function == "exit" => {
             let arguments = if args.is_empty() {
                 "".to_string()
             } else {
                 generate_expression(args)
             };
 
-            format!("_print({});", arguments)
+            format!("_{function}({arguments});")
         }
 
         [
@@ -448,8 +448,8 @@ fn generate_expression(expression: &[Token]) -> String {
         match token {
             Identifier(id) => {
                 if [
-                    "print", "type", "len", "null", "int", "float", "bool", "char", "string",
-                    "list",
+                    "print", "type", "len", "exit", "null", "int", "float", "bool", "char",
+                    "string", "list",
                 ]
                 .contains(&id.as_str())
                 {

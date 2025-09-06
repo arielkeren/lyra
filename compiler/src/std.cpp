@@ -312,6 +312,11 @@ Value _len(const Value& value) {
     throw std::runtime_error("Cannot get length of non-list type");
 }
 
+void _exit(const Value& message) {
+    std::cerr << message << std::endl;
+    std::exit(1);
+}
+
 Value _null(const Value&) { return Value(nullptr); }
 
 Value _int(const Value& value) {
