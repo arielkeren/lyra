@@ -7,21 +7,22 @@
 std::unordered_map<std::string, std::function<Value(const std::vector<Value>&)>>
     Value::global_methods_;
 
-// Constructors
+Value::Value() : type_(Type::Null), value_(0.0) {}
+
 Value::Value(const Value& other)
     : type_(other.type_), value_(other.value_), list_(other.list_) {}
 
 Value::Value(std::nullptr_t) : type_(Type::Null) {}
 
-Value::Value(int value)
-    : type_(Type::Int), value_(static_cast<double>(value)) {}
-
-Value::Value(double value) : type_(Type::Float), value_(value) {}
-
 Value::Value(bool value) : type_(Type::Bool), value_(value ? 1.0 : 0.0) {}
 
 Value::Value(char value)
     : type_(Type::Char), value_(static_cast<double>(value)) {}
+
+Value::Value(int value)
+    : type_(Type::Int), value_(static_cast<double>(value)) {}
+
+Value::Value(double value) : type_(Type::Float), value_(value) {}
 
 Value::Value(const char* value) : type_(Type::String) {
     list_.reserve(strlen(value));
@@ -31,7 +32,13 @@ Value::Value(const char* value) : type_(Type::String) {
 Value::Value(const std::vector<Value>& value)
     : type_(Type::List), list_(value) {}
 
-// Assignment operators
+Value::Value(std::function<Value(const std::vector<Value>&)> func)
+    : type_(Type::Function), value_(0.0), function_(func) {}
+
+Value::operator bool() const {
+    return (is_value() && value_ != 0.0) || (is_iterable() && !list_.empty());
+}
+
 Value& Value::operator=(const Value& other) {
     if (this != &other) {
         type_ = other.type_;
@@ -41,7 +48,6 @@ Value& Value::operator=(const Value& other) {
     return *this;
 }
 
-// Arithmetic operators
 Value Value::operator+(const Value& other) const {
     if (is_value() && other.is_value())
         return type_ == Type::Float || other.type_ == Type::Float
@@ -106,7 +112,6 @@ Value Value::operator%(const Value& other) const {
     return Value(static_cast<int>(result));
 }
 
-// Compound assignment operators
 Value& Value::operator+=(const Value& other) {
     *this = *this + other;
     return *this;
@@ -127,7 +132,11 @@ Value& Value::operator/=(const Value& other) {
     return *this;
 }
 
-// Comparison operators
+Value& Value::operator%=(const Value& other) {
+    *this = *this % other;
+    return *this;
+}
+
 bool Value::operator==(const Value& other) const {
     if (is_value() && other.is_value()) return value_ == other.value_;
     if (is_iterable() && other.is_iterable()) return list_ == other.list_;
@@ -144,10 +153,11 @@ bool Value::operator<(const Value& other) const {
 }
 
 bool Value::operator>(const Value& other) const { return other < *this; }
+
 bool Value::operator<=(const Value& other) const { return !(*this > other); }
+
 bool Value::operator>=(const Value& other) const { return !(*this < other); }
 
-// Logical operators
 Value Value::operator&&(const Value& other) const {
     return Value((bool)*this && (bool)other);
 }
@@ -158,7 +168,6 @@ Value Value::operator||(const Value& other) const {
 
 Value Value::operator!() const { return Value(!(bool)*this); }
 
-// Increment/Decrement operators
 Value& Value::operator++() {
     if (!is_value())
         throw std::runtime_error("Cannot increment non-value type");
@@ -185,7 +194,6 @@ Value Value::operator--(int) {
     return temp;
 }
 
-// Indexing operations
 Value& Value::operator[](Value index) {
     if (index.type_ == Type::String) {
         if (fields_.find(index.to_string()) != fields_.end())
@@ -219,7 +227,49 @@ Value Value::operator[](Value index) const {
     return list_[static_cast<size_t>(index.value_)];
 }
 
-// Iterator support
+Value Value::operator[](const char* method_name) {
+    if (global_methods_.find(method_name) == global_methods_.end()) {
+        throw std::runtime_error("Method '" + std::string(method_name) +
+                                 "' not found");
+    }
+
+    Value callable_method(
+        [this, method_name](const std::vector<Value>& args) -> Value {
+            std::vector<Value> method_args = {*this};
+            method_args.insert(method_args.end(), args.begin(), args.end());
+            return global_methods_[method_name](method_args);
+        });
+
+    return callable_method;
+}
+
+Value Value::operator[](const char* method_name) const {
+    if (global_methods_.find(method_name) == global_methods_.end()) {
+        throw std::runtime_error("Method '" + std::string(method_name) +
+                                 "' not found");
+    }
+
+    Value callable_method(
+        [this, method_name](const std::vector<Value>& args) -> Value {
+            std::vector<Value> method_args = {*this};
+            method_args.insert(method_args.end(), args.begin(), args.end());
+            return global_methods_[method_name](method_args);
+        });
+
+    return callable_method;
+}
+
+Value Value::operator()() const {
+    if (type_ != Type::Function)
+        throw std::runtime_error("Value is not callable");
+    return function_({});
+}
+
+std::ostream& operator<<(std::ostream& os, const Value& value) {
+    os << value.to_string();
+    return os;
+}
+
 std::vector<Value>::const_iterator Value::begin() const {
     if (!is_iterable())
         throw std::runtime_error("Cannot iterate non-iterable type");
@@ -232,7 +282,6 @@ std::vector<Value>::const_iterator Value::end() const {
     return list_.end();
 }
 
-// Conversions
 std::string Value::to_string() const {
     switch (type_) {
         case Type::Null:
@@ -270,18 +319,26 @@ std::string Value::to_string() const {
     return "";
 }
 
-Value::operator bool() const {
-    return (is_value() && value_ != 0.0) || (is_iterable() && !list_.empty());
+Type Value::get_type() const { return type_; }
+
+double Value::get_value() const { return value_; }
+
+const std::vector<Value>& Value::get_list() const { return list_; }
+
+void Value::set_field(const std::string& name, const Value& value) {
+    if (type_ != Type::Object)
+        throw std::runtime_error("Value is not an object");
+    fields_[name] = value;
 }
 
-// Stream operator
-std::ostream& operator<<(std::ostream& os, const Value& value) {
-    os << value.to_string();
-    return os;
+void Value::register_method(
+    const std::string& name,
+    std::function<Value(const std::vector<Value>&)> method) {
+    global_methods_[name] = method;
 }
 
-std::string Value::type() const {
-    switch (type_) {
+Value _type(const Value& value) {
+    switch (value.get_type()) {
         case Type::Null:
             return "null";
         case Type::Int:
@@ -301,13 +358,11 @@ std::string Value::type() const {
         case Type::Object:
             return "object";
     }
-    return "unknown";
+    return "";
 }
 
-Value _type(const Value& value) { return Value(value.type().c_str()); }
-
 Value _len(const Value& value) {
-    if (value.type() == "list" || value.type() == "string")
+    if (value.get_type() == Type::List || value.get_type() == Type::String)
         return Value(static_cast<int>(value.get_list().size()));
     throw std::runtime_error("Cannot get length of non-list type");
 }
@@ -315,13 +370,13 @@ Value _len(const Value& value) {
 Value _null(const Value&) { return Value(nullptr); }
 
 Value _int(const Value& value) {
-    if (value.type() == "list" || value.type() == "string")
+    if (value.get_type() == Type::List || value.get_type() == Type::String)
         throw std::runtime_error("Cannot convert non-value type to int");
     return Value(static_cast<int>(value.get_value()));
 }
 
 Value _float(const Value& value) {
-    if (value.type() == "list" || value.type() == "string")
+    if (value.get_type() == Type::List || value.get_type() == Type::String)
         throw std::runtime_error("Cannot convert non-value type to float");
     return Value(value.get_value());
 }
@@ -329,7 +384,7 @@ Value _float(const Value& value) {
 Value _bool(const Value& value) { return (bool)value; }
 
 Value _char(const Value& value) {
-    if (value.type() == "list" || value.type() == "string")
+    if (value.get_type() == Type::List || value.get_type() == Type::String)
         throw std::runtime_error("Cannot convert non-value type to char");
     return Value(static_cast<char>(value.get_value()));
 }
@@ -337,7 +392,7 @@ Value _char(const Value& value) {
 Value _string(const Value& value) { return Value(value.to_string().c_str()); }
 
 Value _list(const Value& value) {
-    if (value.type() == "list") return value;
-    if (value.type() == "string") return Value(value.get_list());
+    if (value.get_type() == Type::List) return value;
+    if (value.get_type() == Type::String) return Value(value.get_list());
     return Value(std::vector<Value>{value});
 }
