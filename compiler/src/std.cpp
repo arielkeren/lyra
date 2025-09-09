@@ -137,6 +137,16 @@ Value& Value::operator%=(const Value& other) {
     return *this;
 }
 
+Value& Value::operator&=(const Value& other) {
+    *this = *this && other;
+    return *this;
+}
+
+Value& Value::operator|=(const Value& other) {
+    *this = *this || other;
+    return *this;
+}
+
 bool Value::operator==(const Value& other) const {
     if (is_value() && other.is_value()) return value_ == other.value_;
     if (is_iterable() && other.is_iterable()) return list_ == other.list_;

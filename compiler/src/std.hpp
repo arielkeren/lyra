@@ -69,6 +69,8 @@ class Value {
     Value& operator*=(const Value& other);
     Value& operator/=(const Value& other);
     Value& operator%=(const Value& other);
+    Value& operator&=(const Value& other);
+    Value& operator|=(const Value& other);
 
     bool operator==(const Value& other) const;
     bool operator!=(const Value& other) const;
